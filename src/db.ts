@@ -14,16 +14,17 @@ import { User } from "./entities/User";
 // }
 
 export const AppDataSource: DataSourceOptions = {
-    type: "mariadb",
-    host: "192.168.88.69",
-    port: 3305,
-    username: "root",
-    password: "DRACENA2024$",
-    database: "medianera",
-    entities: [],
-    logging:true,
-    synchronize:true,
+  type: "mysql",
+  host: "auth-db1050.hstgr.io",
+  port: 3306,
+  username: "u805022007_root",
+  password: "Foodmix2025$",
+  database: "u805022007_foodmix",
+  entities: [],
+  logging: true,
+  synchronize: true,
 }
+
 
 
 // import { DataSource, DataSourceOptions } from "typeorm";
