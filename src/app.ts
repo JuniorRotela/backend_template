@@ -59,6 +59,8 @@ import cargadora from './routes/cargadora.routes';
 import Empresas from './routes/empresas.routes'; 
 import Quiebra  from './routes/quiebra.routes'; 
 import Precio  from './routes/precio.routes'; 
+import transaccion  from './routes/transaccion.routes'; 
+
 
 // --- Import de servicios ---
 import { PostReporteLavadora } from './services/reporteLavadora/insertTruck.services'; 
@@ -110,6 +112,7 @@ app.use('/uploads', express.static(uploadDir));
 app.use(Aprovechamiento);
 app.use(loginRoutes);
 app.use(MarcacionRoutes);
+app.use(transaccion);
 app.use(protectedRoutes);
 app.use(verifyToken);
 app.use(userRoutes);
