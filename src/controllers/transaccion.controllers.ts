@@ -1,32 +1,48 @@
-
-
+import "dotenv/config";
 import { Request, Response } from "express";
 import axios from "axios";
-
-
-
+import crypto from "crypto";
 
 export const createTransaccion = async (req: Request, res: Response) => {
-  const PAGOPAR_API_KEY = "33d24b2676f577a06fed74114fe86b54";
+  const PAGOPAR_API_URL = process.env.PAGOPAR_API_URL;
+  const PAGOPAR_PUBLIC_KEY = process.env.PAGOPAR_PUBLIC_KEY;
+  const PAGOPAR_TOKEN_PRIVADO = process.env.PAGOPAR_TOKEN_PRIVADO;
+
   try {
     const data = req.body; // lo que recibís desde el frontend
-    console.log("🚀 ~ createTransaccion ~ data:", data)
-    console.log("Tu clave de Pagopar es:", PAGOPAR_API_KEY);
+    console.log("🚀 ~ Data recibida del frontend:", data);
+
+    const { id_pedido_comercio, monto_total } = data;
+
+    // Generar el token dinámico
+    const token = crypto
+      .createHash("sha1")
+      .update(PAGOPAR_TOKEN_PRIVADO + id_pedido_comercio + String(parseFloat(monto_total)))
+      .digest("hex");
+
+    // Construir el payload con token incluido
+    const payload = {
+      ...data,
+      public_key: PAGOPAR_PUBLIC_KEY, // aseguramos que lleve la public_key correcta
+      token,
+    };
+
+    console.log("🚀 ~ Payload a enviar a Pagopar:", payload);
+
     // Configura los headers según la documentación de Pagopar
     const headers = {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${process.env.PAGOPAR_API_KEY}`, // usa tu API key
     };
 
     // Hacemos el request a Pagopar
-    const response = await axios.post(
-      "https://api.pagopar.com/api/comercios/2.0/iniciar-transaccion",
-      data,
-      { headers }
-    );
+    const response = await axios.post(PAGOPAR_API_URL!, payload, { headers });
+
+
+    const respuesta = response.data.resultado[0];
+    console.log("🚀 ~ Respuesta de Pagopar:", respuesta);
 
     // Retornamos la respuesta al frontend
-    return res.json(response.data);
+    return res.json(respuesta);
 
   } catch (error: any) {
     console.error("Error creando transacción:", error.response?.data || error.message);
@@ -37,3 +53,170 @@ export const createTransaccion = async (req: Request, res: Response) => {
     });
   }
 };
+
+
+
+// export const recibirNotificacionPagopar = async (req: Request, res: Response) => {
+//   try {
+//     const datos = req.body;
+//     console.log("📩 Notificación recibida de Pagopar:", datos);
+
+//     const {
+//       resultado,
+//       numero_comprobante_interno,
+//       monto,
+//       moneda,
+//       descripcion,
+//       id,
+//       comercio,
+//       token,
+//       respuesta
+//     } = datos;
+
+//     // Validar que el pago fue exitoso
+//     if (resultado === true && respuesta === "Pago realizado con éxito") {
+//       // Aquí podrías guardar el pago en tu base de datos
+//       console.log("✅ Pago confirmado:", {
+//         numero_comprobante_interno,
+//         monto,
+//         moneda,
+//         descripcion,
+//         id,
+//         comercio,
+//         token
+//       });
+
+//       // Respondés a Pagopar con éxito
+//       return res.status(200).json({ message: "Notificación procesada correctamente" });
+//     } else {
+//       console.warn("⚠️ Pago no exitoso o incompleto:", datos);
+//       return res.status(400).json({ message: "Pago no confirmado" });
+//     }
+
+//   } catch (error: any) {
+//     console.error("❌ Error procesando notificación:", error.message);
+//     return res.status(500).json({ message: "Error interno al procesar la notificación" });
+//   }
+// };
+
+
+// export const recibirNotificacionPagopar = async (req: Request, res: Response) => {
+//   try {
+//     const datos = req.body;
+//     console.log("📩 Notificación recibida de Pagopar:", datos);
+
+//     const { respuesta, resultado } = datos;
+
+//     // Verificar estructura de la respuesta
+//     if (!respuesta || !Array.isArray(resultado) || resultado.length === 0) {
+//       console.warn("⚠️ Estructura de notificación inválida:", datos);
+//       return res.status(400).json({ message: "Estructura inválida" });
+//     }
+
+//     const pago = resultado[0]; // Tomamos el primer elemento del array
+
+//     if (pago.pagado === true && pago.cancelado === false) {
+//       // ✅ Pago exitoso
+//       console.log("✅ Pago confirmado:", {
+//         numero_comprobante_interno: pago.numero_comprobante_interno,
+//         monto: pago.monto,
+//         forma_pago: pago.forma_pago,
+//         fecha_pago: pago.fecha_pago,
+//         numero_pedido: pago.numero_pedido,
+//         hash_pedido: pago.hash_pedido,
+//         token: pago.token,
+//       });
+
+//       // Guardar en DB si querés
+//       // await savePayment(pago);
+
+//       return res.status(200).json({ message: "Notificación procesada correctamente" });
+//     } else {
+//       // ❌ Pago rechazado o cancelado
+//       console.warn("⚠️ Pago no exitoso:", pago);
+//       return res.status(400).json({ message: "Pago no confirmado" });
+//     }
+
+//   } catch (error: any) {
+//     console.error("❌ Error procesando notificación:", error.message);
+//     return res.status(500).json({ message: "Error interno al procesar la notificación" });
+//   }
+// };
+
+export const recibirNotificacionPagopar = async (req: Request, res: Response) => {
+  try {
+    const datos = req.body;
+    console.log("📩 Notificación recibida de Pagopar:", datos);
+
+    const { respuesta, resultado } = datos;
+
+    // Verificar estructura de la respuesta
+    if (!respuesta || !Array.isArray(resultado) || resultado.length === 0) {
+      console.warn("⚠️ Estructura de notificación inválida:", datos);
+      return res.status(400).json([{ pagado: false }]);
+    }
+
+    const pago = resultado[0]; // Tomamos el primer elemento del array
+
+    if (pago.pagado === true && pago.cancelado === false) {
+      // ✅ Pago exitoso
+      console.log("✅ Pago confirmado:", pago);
+
+      // Guardar en DB si querés
+      // await savePayment(pago);
+
+      // 👉 Retornar directamente el array con el pago
+      return res.status(200).json([pago]);
+    } else {
+      // ❌ Pago rechazado o cancelado o pendiente
+      console.warn("⚠️ Pago no exitoso:", pago);
+
+      // 👉 Devolvemos el mismo objeto pero con `pagado: false`
+      const pagoNoExitoso = {
+        ...pago,
+        pagado: false,
+        fecha_pago: null, // aseguramos que sea null
+      };
+
+      return res.status(200).json([pagoNoExitoso]);
+    }
+  } catch (error: any) {
+    console.error("❌ Error procesando notificación:", error.message);
+    return res.status(500).json([{ pagado: false }]);
+  }
+};
+
+
+export const recibirResultadoPagopar = async (req: Request, res: Response) => {
+ try {
+    const hashBody = req.body;
+    const hashPedido = req.query.hash_pedido as string;
+
+    const privateKey = process.env.PAGOPAR_PRIVATE_KEY!;
+    const publicKey = process.env.PAGOPAR_PUBLIC_KEY!;
+    const token = crypto.createHash("sha1").update(privateKey + "CONSULTA").digest("hex");
+
+    const { data } = await axios.post("https://api.pagopar.com/api/pedidos/1.1/traer", {
+      hash_pedido: hashPedido,
+      token,
+      token_publico: publicKey,
+    });
+
+    if (data.respuesta && data.resultado.length > 0) {
+      const pedido = data.resultado[0];
+
+      if (pedido.pagado) {
+        return res.send("<h1>✅ Pago exitoso</h1>");
+      } else if (pedido.cancelado) {
+        return res.send("<h1>❌ Pago cancelado</h1>");
+      } else {
+        return res.send("<h1>⏳ Pago pendiente</h1>");
+      }
+    }
+
+    res.send("<h1>Error al consultar el pedido</h1>");
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error interno");
+  }
+}

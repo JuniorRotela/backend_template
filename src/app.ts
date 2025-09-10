@@ -157,7 +157,8 @@ app.use(Exportacion);
 app.use(PedidoVenta);
 app.use(Precio);
 app.use(cargadora);
-
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 // --- Celebrate errores ---
 app.use(celebrateErrors());
 
@@ -165,6 +166,10 @@ app.use(celebrateErrors());
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Internal Server Error' });
+});
+
+app.get("/pagopar/confirmacion/:hash", (req, res) => {
+  res.send("Gracias por tu compra. Hash recibido: " + req.params.hash);
 });
 
 // --- Socket.IO comentado ---
