@@ -1,3 +1,4 @@
+import { data } from 'cheerio/dist/commonjs/api/attributes';
 import "dotenv/config";
 import { Request, Response } from "express";
 import axios from "axios";
@@ -188,35 +189,36 @@ export const recibirNotificacionPagopar = async (req: Request, res: Response) =>
 
 
 export const recibirResultadoPagopar = async (req: Request, res: Response) => {
- try {
-    const hashBody = req.body;
-    const hashPedido = req.query.hash_pedido as string;
+  try {
+    const hashPedido: string = String(req.body.hash);
 
-    const privateKey = process.env.PAGOPAR_PRIVATE_KEY!;
+    const privateKey = process.env.PAGOPAR_TOKEN_PRIVADO!;
     const publicKey = process.env.PAGOPAR_PUBLIC_KEY!;
-    const token = crypto.createHash("sha1").update(privateKey + "CONSULTA").digest("hex");
 
-    const { data } = await axios.post("https://api.pagopar.com/api/pedidos/1.1/traer", {
+    // ✅ Token correcto para consulta
+    const tokenConsulta = crypto
+      .createHash("sha1")
+      .update(privateKey + "CONSULTA")
+      .digest("hex");
+
+    const data = {
       hash_pedido: hashPedido,
-      token,
+      token: tokenConsulta,
       token_publico: publicKey,
-    });
+    };
 
-    if (data.respuesta && data.resultado.length > 0) {
-      const pedido = data.resultado[0];
+    const send = await axios.post(
+      "https://api.pagopar.com/api/pedidos/1.1/traer",
+      data
+    );
 
-      if (pedido.pagado) {
-        return res.send("<h1>✅ Pago exitoso</h1>");
-      } else if (pedido.cancelado) {
-        return res.send("<h1>❌ Pago cancelado</h1>");
-      } else {
-        return res.send("<h1>⏳ Pago pendiente</h1>");
-      }
-    }
+    console.log("🚀 ~ Respuesta de consulta de pedido:", send.data);
 
-    res.send("<h1>Error al consultar el pedido</h1>");
+    // ✅ Enviar al frontend tal cual lo devuelve Pagopar
+    return res.json(send.data);
+
   } catch (error) {
-    console.error(error);
-    res.status(500).send("Error interno");
+    console.error("❌ Error en recibirResultadoPagopar:", error);
+    return res.status(500).json({ error: "Error interno" });
   }
-}
+};
