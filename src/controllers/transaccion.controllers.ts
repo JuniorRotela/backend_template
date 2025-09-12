@@ -146,6 +146,9 @@ export const createTransaccion = async (req: Request, res: Response) => {
 
 export const recibirNotificacionPagopar = async (req: Request, res: Response) => {
   try {
+    const privateKey = process.env.PAGOPAR_TOKEN_PRIVADO!;
+    const publicKey = process.env.PAGOPAR_PUBLIC_KEY!;
+
     const datos = req.body;
     console.log("📩 Notificación recibida de Pagopar:", datos);
 
@@ -157,7 +160,24 @@ export const recibirNotificacionPagopar = async (req: Request, res: Response) =>
       return res.status(400).json([{ pagado: false }]);
     }
 
-    const pago = resultado[0]; // Tomamos el primer elemento del array
+        const pago = resultado[0];
+
+    // Validar token
+    const hashPedido = String(pago.hash_pedido);
+    // console.log("🔑 Hash del pedido:", hashPedido);
+    const tokenRecibido = String(pago.token); 
+    // console
+
+    const tokenEsperado = crypto
+      .createHash("sha1")
+      .update(privateKey + hashPedido)
+      .digest("hex");
+
+      // console.log("🔑 Token esperado:", tokenEsperado);
+    if (tokenEsperado !== tokenRecibido) {
+      console.warn("❌ Token inválido. Posible intento de manipulación.");
+      return res.status(200).json([{ pagado: false, error: "Token inválido" }]);
+    }
 
     if (pago.pagado === true && pago.cancelado === false) {
       // ✅ Pago exitoso
