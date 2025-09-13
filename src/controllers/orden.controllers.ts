@@ -3,56 +3,26 @@ import "dotenv/config";
 import { Request, Response } from "express";
 import axios from "axios";
 import crypto from "crypto";
-import { updateDataOrden } from '../services/orden/update.services';
+import { insertDataOr } from '../services/orden/Insert.services';
 
-export const createTransaccion = async (req: Request, res: Response) => {
-  const PAGOPAR_API_URL = process.env.PAGOPAR_API_URL;
-  const PAGOPAR_PUBLIC_KEY = process.env.PAGOPAR_PUBLIC_KEY;
-  const PAGOPAR_TOKEN_PRIVADO = process.env.PAGOPAR_TOKEN_PRIVADO;
+
+export const createOrden = async (req: Request, res: Response) => {
+  const tableName = "orders"; // Reemplaza con el nombre de tu tabla
+  const data = req.body;
+  console.log("🚀 ~ createOrden ~ data:", data)
 
   try {
-    const data = req.body; // lo que recibís desde el frontend
-    console.log("🚀 ~ Data recibida del frontend:", data);
 
-    const { id_pedido_comercio, monto_total } = data;
+    const resp = await insertDataOr(tableName, data);
+    // console.log("respuesta insert",resp)
 
-    // Generar el token dinámico
-    const token = crypto
-      .createHash("sha1")
-      .update(PAGOPAR_TOKEN_PRIVADO + id_pedido_comercio + String(parseFloat(monto_total)))
-      .digest("hex");
+    res.json({ message: "Data inserted successfully", resp});
+  } catch (error) {
+    console.error("Error creating marcacion:", error);
 
-    // Construir el payload con token incluido
-    const payload = {
-      ...data,
-      public_key: PAGOPAR_PUBLIC_KEY, // aseguramos que lleve la public_key correcta
-      token,
-    };
-
-    console.log("🚀 ~ Payload a enviar a Pagopar:", payload);
-
-    // Configura los headers según la documentación de Pagopar
-    const headers = {
-      "Content-Type": "application/json",
-    };
-
-    // Hacemos el request a Pagopar
-    const response = await axios.post(PAGOPAR_API_URL!, payload, { headers });
-
-
-    const respuesta = response.data.resultado[0];
-    console.log("🚀 ~ Respuesta de Pagopar:", respuesta);
-
-    // Retornamos la respuesta al frontend
-    return res.json(respuesta);
-
-  } catch (error: any) {
-    console.error("Error creando transacción:", error.response?.data || error.message);
-
-    return res.status(500).json({
-      message: "Error al crear transacción",
-      error: error.response?.data || error.message,
-    });
+    if (error instanceof Error) {
+      return res.status(500).json({ message: error.message });
+    }
   }
 };
 
@@ -185,18 +155,6 @@ export const recibirNotificacionPagopar = async (req: Request, res: Response) =>
       console.log("✅ Pago confirmado:", pago);
 
       // Guardar en DB si querés
-      const id_pedido = String(pago.numero_pedido);
-      const fecha_pago = String(pago.fecha_pago);
-      const pagado = 1; // true
-
-      const updateData = {
-        status_pago: pagado,
-        fecha_pago: fecha_pago
-      };
-
-      await updateDataOrden("orders", id_pedido, updateData);
-
-      console.log("Datos para actualizar la orden:", updateData);
       // await savePayment(pago);
 
       // 👉 Retornar directamente el array con el pago

@@ -60,6 +60,7 @@ import Empresas from './routes/empresas.routes';
 import Quiebra  from './routes/quiebra.routes'; 
 import Precio  from './routes/precio.routes'; 
 import transaccion  from './routes/transaccion.routes'; 
+import orden  from './routes/orden.routes'; 
 
 
 // --- Import de servicios ---
@@ -114,6 +115,7 @@ app.use(loginRoutes);
 app.use(MarcacionRoutes);
 app.use(transaccion);
 app.use(protectedRoutes);
+app.use(orden);
 app.use(verifyToken);
 app.use(userRoutes);
 app.use(Empresas);
