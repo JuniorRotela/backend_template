@@ -4,7 +4,7 @@ import { Request, Response } from "express";
 import axios from "axios";
 import crypto from "crypto";
 import { insertDataOr } from '../services/orden/Insert.services';
-
+import { getOneOrdenx } from '../services/orden/getOne.services';
 
 export const createOrden = async (req: Request, res: Response) => {
   const tableName = "orders"; // Reemplaza con el nombre de tu tabla
@@ -27,6 +27,27 @@ export const createOrden = async (req: Request, res: Response) => {
 };
 
 
+export const getOneOrden = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  console.log("🚀 ~ getOneOrden ~ id:", id)
+  const tableName = "orders"; // Reemplaza con el nombre de tu tabla
+  const idI = parseInt(id, 10);
+  try {
+    const Data = await getOneOrdenx(tableName, idI);
+
+    if (Data) {
+      res.json(Data);
+    } else {
+      res.status(404).json({ message: "orden not found" });
+    }
+  } catch (error) {
+    console.error("Error getting orden data:", error);
+
+    if (error instanceof Error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+};
 
 // export const recibirNotificacionPagopar = async (req: Request, res: Response) => {
 //   try {
