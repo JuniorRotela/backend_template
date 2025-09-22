@@ -4,6 +4,7 @@ import { Request, Response } from "express";
 import axios from "axios";
 import crypto from "crypto";
 import { updateDataOrden } from '../services/orden/update.services';
+import { sendNotification } from '../app';
 
 export const createTransaccion = async (req: Request, res: Response) => {
   const PAGOPAR_API_URL = process.env.PAGOPAR_API_URL;
@@ -145,6 +146,134 @@ export const createTransaccion = async (req: Request, res: Response) => {
 //   }
 // };
 
+// export const recibirNotificacionPagopar = async (req: Request, res: Response) => {
+//   try {
+//     const privateKey = process.env.PAGOPAR_TOKEN_PRIVADO!;
+//     const publicKey = process.env.PAGOPAR_PUBLIC_KEY!;
+
+//     const datos = req.body;
+//     console.log("📩 Notificación recibida de Pagopar:", datos);
+
+//     const { respuesta, resultado } = datos;
+
+//     // Verificar estructura de la respuesta
+//     if (!respuesta || !Array.isArray(resultado) || resultado.length === 0) {
+//       console.warn("⚠️ Estructura de notificación inválida:", datos);
+//       return res.status(400).json([{ pagado: false }]);
+//     }
+
+//         const pago = resultado[0];
+
+//     // Validar token
+//     const hashPedido = String(pago.hash_pedido);
+//     // console.log("🔑 Hash del pedido:", hashPedido);
+//     const tokenRecibido = String(pago.token); 
+//     // console
+
+//     const tokenEsperado = crypto
+//       .createHash("sha1")
+//       .update(privateKey + hashPedido)
+//       .digest("hex");
+
+//       // console.log("🔑 Token esperado:", tokenEsperado);
+//     if (tokenEsperado !== tokenRecibido) {
+//       console.warn("❌ Token inválido. Posible intento de manipulación.");
+//       return res.status(200).json([{ pagado: false, error: "Token inválido" }]);
+//     }
+
+//     if (pago.pagado === true && pago.cancelado === false) {
+//       // ✅ Pago exitoso
+//       console.log("✅ Pago confirmado:", pago);
+
+//       // Guardar en DB si querés
+//       const id_pedido = String(pago.numero_pedido);
+//       const fecha_pago = String(pago.fecha_pago);
+//       const pagado = 1; // true
+
+//       const updateData = {
+//         status_pago: pagado,
+//         fecha_pago: fecha_pago
+//       };
+
+//       await updateDataOrden("orders", id_pedido, updateData);
+
+//       console.log("Datos para actualizar la orden:", updateData);
+//       // await savePayment(pago);
+
+//       // 👉 Retornar directamente el array con el pago
+//       return res.status(200).json([pago]);
+//     } else {
+//       // ❌ Pago rechazado o cancelado o pendiente
+//       console.warn("⚠️ Pago no exitoso:", pago);
+
+//       // 👉 Devolvemos el mismo objeto pero con `pagado: false`
+//       const pagoNoExitoso = {
+//         ...pago,
+//         pagado: false,
+//         fecha_pago: null, // aseguramos que sea null
+//       };
+
+//       return res.status(200).json([pagoNoExitoso]);
+//     }
+//   } catch (error: any) {
+//     console.error("❌ Error procesando notificación:", error.message);
+//     return res.status(500).json([{ pagado: false }]);
+//   }
+// };
+
+
+export const recibirResultadoPagopar = async (req: Request, res: Response) => {
+  try {
+    const hashPedido: string = String(req.body.hash);
+
+    const privateKey = process.env.PAGOPAR_TOKEN_PRIVADO!;
+    const publicKey = process.env.PAGOPAR_PUBLIC_KEY!;
+
+    const tokenConsulta = crypto
+      .createHash("sha1")
+      .update(privateKey + "CONSULTA")
+      .digest("hex");
+
+    const data = {
+      hash_pedido: hashPedido,
+      token: tokenConsulta,
+      token_publico: publicKey,
+    };
+
+    const send = await axios.post(
+      "https://api.pagopar.com/api/pedidos/1.1/traer",
+      data
+    );
+
+    console.log("🚀 ~ Respuesta de consulta de pedido:", send.data);
+
+    // Enviar notificación con el resultado
+    sendNotification(
+      'transaction_status',
+      'Consulta de pago recibida',
+      {
+        hashPedido,
+        status: send.data.resultado[0]?.pagado ? 'success' : 'pending',
+        data: send.data
+      }
+    );
+
+    return res.json(send.data);
+
+  } catch (error) {
+    console.error("❌ Error en recibirResultadoPagopar:", error);
+    
+    // Notificación de error
+    sendNotification(
+      'error',
+      'Error al consultar el estado del pago',
+      { hashPedido: req.body.hash }
+    );
+    
+    return res.status(500).json({ error: "Error interno" });
+  }
+};
+
 export const recibirNotificacionPagopar = async (req: Request, res: Response) => {
   try {
     const privateKey = process.env.PAGOPAR_TOKEN_PRIVADO!;
@@ -181,8 +310,16 @@ export const recibirNotificacionPagopar = async (req: Request, res: Response) =>
     }
 
     if (pago.pagado === true && pago.cancelado === false) {
-      // ✅ Pago exitoso
-      console.log("✅ Pago confirmado:", pago);
+      // Notificación de pago exitoso
+      sendNotification(
+        'payment_success',
+        'Pago confirmado exitosamente',
+        {
+          orderNumber: pago.numero_pedido,
+          amount: pago.monto,
+          paymentDate: pago.fecha_pago
+        }
+      );
 
       // Guardar en DB si querés
       const id_pedido = String(pago.numero_pedido);
@@ -202,6 +339,16 @@ export const recibirNotificacionPagopar = async (req: Request, res: Response) =>
       // 👉 Retornar directamente el array con el pago
       return res.status(200).json([pago]);
     } else {
+      // Notificación de pago no exitoso
+      sendNotification(
+        'payment_failed',
+        'El pago no fue exitoso o está pendiente',
+        {
+          orderNumber: pago.numero_pedido,
+          status: pago.pagado ? 'pending' : 'failed'
+        }
+      );
+
       // ❌ Pago rechazado o cancelado o pendiente
       console.warn("⚠️ Pago no exitoso:", pago);
 
@@ -215,43 +362,14 @@ export const recibirNotificacionPagopar = async (req: Request, res: Response) =>
       return res.status(200).json([pagoNoExitoso]);
     }
   } catch (error: any) {
+    // Notificación de error
+    sendNotification(
+      'error',
+      'Error al procesar la notificación de pago',
+      { error: error.message }
+    );
+    
     console.error("❌ Error procesando notificación:", error.message);
     return res.status(500).json([{ pagado: false }]);
-  }
-};
-
-
-export const recibirResultadoPagopar = async (req: Request, res: Response) => {
-  try {
-    const hashPedido: string = String(req.body.hash);
-
-    const privateKey = process.env.PAGOPAR_TOKEN_PRIVADO!;
-    const publicKey = process.env.PAGOPAR_PUBLIC_KEY!;
-
-    // ✅ Token correcto para consulta
-    const tokenConsulta = crypto
-      .createHash("sha1")
-      .update(privateKey + "CONSULTA")
-      .digest("hex");
-
-    const data = {
-      hash_pedido: hashPedido,
-      token: tokenConsulta,
-      token_publico: publicKey,
-    };
-
-    const send = await axios.post(
-      "https://api.pagopar.com/api/pedidos/1.1/traer",
-      data
-    );
-
-    console.log("🚀 ~ Respuesta de consulta de pedido:", send.data);
-
-    // ✅ Enviar al frontend tal cual lo devuelve Pagopar
-    return res.json(send.data);
-
-  } catch (error) {
-    console.error("❌ Error en recibirResultadoPagopar:", error);
-    return res.status(500).json({ error: "Error interno" });
   }
 };

@@ -1,5 +1,5 @@
 import { createServer } from 'http';
-// import { Server } from 'socket.io';
+import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -62,16 +62,38 @@ import Precio  from './routes/precio.routes';
 import transaccion  from './routes/transaccion.routes'; 
 import orden  from './routes/orden.routes'; 
 
-
-// --- Import de servicios ---
-import { PostReporteLavadora } from './services/reporteLavadora/insertTruck.services'; 
-import { PostReporteSalaLimpia } from './services/reporteSalaLimpia/insertSL.services';
-import { UpdateReporteSL } from './services/reporteSalaLimpia/updateSL.services'
-import { PostReporteCalandraSK } from '../src/controllers/reporteCalandra.controllers'
 import { verifyToken } from './middleware/auth';
 
 // --- Inicialización de Express ---
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: 'http://localhost:5173', // En producción, configura esto con tu dominio específico
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
+  transports: ['websocket', 'polling'] // Asegura múltiples transportes
+});
+
+// Agregar log para debugging
+io.on('connection', (socket) => {
+  console.log('🔌 Cliente conectado:', socket.id);
+
+  socket.on('disconnect', () => {
+    console.log('❌ Cliente desconectado:', socket.id);
+  });
+});
+
+// Función helper para enviar notificaciones
+export const sendNotification = (type: string, title: string, data?: any) => {
+  io.emit('notification', {
+    type,
+    title,
+    data,
+    timestamp: new Date()
+  });
+};
 
 // --- Middlewares ---
 app.use(cors({
@@ -174,66 +196,5 @@ app.get("/pagopar/confirmacion/:hash", (req, res) => {
   res.send("Gracias por tu compra. Hash recibido: " + req.params.hash);
 });
 
-// --- Socket.IO comentado ---
-// const server = createServer(app);
-// const io = new Server(server, {
-//   cors: { origin: "*", methods: ["GET", "POST"] },
-//   pingInterval: 10000,
-//   pingTimeout: 5000,
-// }); 
-
-// produccionSocket(io);
-// produccionUpdateSocket(io)
-
-// --- Eventos comentados ---
-// io.on('connection', (socket) => {
-//   console.log('Cliente conectado');
-//   socket.on('PostReporteLavadora', async ({ datos }) => {
-//     try {
-//       const createdLavadoraReport = await PostReporteLavadora(datos);
-//       io.emit('lavadoraReportUpdated', createdLavadoraReport);
-//       socket.emit('lavadoraReportCreated', createdLavadoraReport);
-//     } catch (error) {
-//       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-//       socket.emit('lavadoraReportCreated', { error: errorMessage });
-//     }
-//   });
-
-//   socket.on('PostReporteSalaLimpiaSK', async ({ datos }) => {
-//     try {
-//       const createdSalaLimpiaReport = await PostReporteSalaLimpia(datos);
-//       io.emit('salalimpiaReportUpdated', createdSalaLimpiaReport);
-//       socket.emit('salaLimpiaReportCreated', createdSalaLimpiaReport);
-//     } catch (error) {
-//       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-//       socket.emit('salaLimpiaReportCreated', { error: errorMessage });
-//     }
-//   });
-
-//   socket.on('PostReporteCalandraSK', async ({ datos }) => {
-//     try {
-//       const createdCalandraReport = await PostReporteCalandraSK(datos); 
-//       io.emit('calandraReportUpdated', createdCalandraReport);
-//       socket.emit('calandraReportCreated', createdCalandraReport);
-//     } catch (error) {
-//       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-//       socket.emit('calandraReportCreated', { error: errorMessage });
-//     }
-//   });
-
-//   socket.on('UpdateReporteSalaLimpiaSK', async ({ id, datos }) => {
-//     try {
-//       io.emit('mostrar_modal_calandra', { datos });
-//       const updatedSalaLimpiaReport = await UpdateReporteSL(id, datos);
-//       io.emit('salalimpiaReportUpdated', updatedSalaLimpiaReport);
-//       socket.emit('salaLimpiaReportUpdated', updatedSalaLimpiaReport);
-//     } catch (error) {
-//       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-//       socket.emit('salaLimpiaReportUpdated', { error: errorMessage });
-//     }
-//   });
-// });
-
-// --- Export ---
-export default app;
-// export { io, server };
+// Modifica la exportación para incluir el httpServer
+export { app, httpServer };
