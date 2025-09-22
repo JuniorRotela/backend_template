@@ -29,25 +29,34 @@ export const createOrden = async (req: Request, res: Response) => {
 
 export const getOneOrden = async (req: Request, res: Response) => {
   const { id } = req.params;
-  console.log("🚀 ~ getOneOrden ~ id:", id)
-  const tableName = "orders"; // Reemplaza con el nombre de tu tabla
+  console.log("🚀 ~ getOneOrden ~ id (raw):", id);
+
+  const tableName = "orders"; // 👈 tu tabla
   const idI = parseInt(id, 10);
+
+  if (isNaN(idI)) {
+    return res.status(400).json({ message: "ID inválido, debe ser un número" });
+  }
+
   try {
     const Data = await getOneOrdenx(tableName, idI);
 
     if (Data) {
       res.json(Data);
     } else {
-      res.status(404).json({ message: "orden not found" });
+      res.status(404).json({ message: "Orden no encontrada" });
     }
   } catch (error) {
     console.error("Error getting orden data:", error);
 
     if (error instanceof Error) {
       res.status(500).json({ message: error.message });
+    } else {
+      res.status(500).json({ message: "Error desconocido" });
     }
   }
 };
+
 
 // export const recibirNotificacionPagopar = async (req: Request, res: Response) => {
 //   try {

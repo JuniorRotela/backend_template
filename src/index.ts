@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { createConnection, ConnectionOptions } from 'typeorm';
-import app from './app';
+import {app} from './app';
 import { AppDataSource } from './db';
 
 async function main() {
