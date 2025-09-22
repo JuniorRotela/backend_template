@@ -76,9 +76,28 @@ const io = new Server(httpServer, {
   transports: ['websocket', 'polling'] // Asegura múltiples transportes
 });
 
-// Agregar log para debugging
+// // Agregar log para debugging
+// io.on('connection', (socket) => {
+//   console.log('🔌 Cliente conectado:', socket.id);
+
+//   socket.on('disconnect', () => {
+//     console.log('❌ Cliente desconectado:', socket.id);
+//   });
+// });
+
 io.on('connection', (socket) => {
   console.log('🔌 Cliente conectado:', socket.id);
+
+  socket.on('new-order', (data) => {
+    console.log('📦 Nuevo pedido recibido:', data);
+    // Emitir a todos los clientes conectados
+    io.emit('notification', {
+      type: 'new-order',
+      title: 'Nuevo Pedido',
+      data: data.order,
+      timestamp: new Date()
+    });
+  });
 
   socket.on('disconnect', () => {
     console.log('❌ Cliente desconectado:', socket.id);

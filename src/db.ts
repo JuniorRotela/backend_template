@@ -27,7 +27,7 @@ export const AppDataSource = new DataSource({
   username: "u805022007_root",
   password: "Foodmix2025$",
   database: "u805022007_foodmix",
-  entities: [User], // acá van tus entidades
+  entities: [], // acá van tus entidades
   logging: true,
   synchronize: true,
 });
