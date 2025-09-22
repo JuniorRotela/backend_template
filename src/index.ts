@@ -27,8 +27,8 @@ async function main() {
     // Inicializar la conexión con DataSource
     await AppDataSource.initialize();
 
-    app.listen(5010, '0.0.0.0');
-    console.log('Server is listening on port', 5010);
+    app.listen(5003, '0.0.0.0');
+    console.log('Server is listening on port', 5003);
   } catch (error) {
     console.error('Error starting the server:', error);
   }

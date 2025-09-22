@@ -16,7 +16,7 @@
 import { app, httpServer } from "./app";
 import { AppDataSource } from "./db";
 
-const API_PORT = process.env.API_PORT || 5010;
+const API_PORT = process.env.API_PORT || 5003;
 
 // Inicializar DB primero
 AppDataSource.initialize().then(() => {
