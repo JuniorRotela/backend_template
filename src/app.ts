@@ -69,7 +69,7 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://localhost:5173', // En producción, configura esto con tu dominio específico
+    origin: '*', // En producción, configura esto con tu dominio específico
     methods: ['GET', 'POST'],
     credentials: true
   },
