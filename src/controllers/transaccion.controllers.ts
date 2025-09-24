@@ -41,11 +41,16 @@ export const createTransaccion = async (req: Request, res: Response) => {
     const response = await axios.post(PAGOPAR_API_URL!, payload, { headers });
 
 
-    const respuesta = response.data.resultado[0];
-    console.log("🚀 ~ Respuesta de Pagopar:", respuesta);
+    // const respuesta = response.data.resultado[0];
+    // console.log("🚀 ~ Respuesta de Pagopar:", respuesta);
 
-    // Retornamos la respuesta al frontend
-    return res.json(respuesta);
+    // // Retornamos la respuesta al frontend
+    // return res.json(respuesta);
+
+    const respuesta = response.data?.resultado?.[0];
+if (!respuesta || respuesta === "E" || respuesta === "L") {
+  return res.status(400).json({ message: "Error en Pagopar", data: response.data });
+}
 
   } catch (error: any) {
     console.error("Error creando transacción:", error.response?.data || error.message);
