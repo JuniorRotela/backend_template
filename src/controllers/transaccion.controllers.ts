@@ -6,6 +6,7 @@ import crypto from "crypto";
 import { updateDataOrden } from '../services/orden/update.services';
 import { sendNotification } from '../app';
 
+
 export const createTransaccion = async (req: Request, res: Response) => {
   const PAGOPAR_API_URL = process.env.PAGOPAR_API_URL;
   const PAGOPAR_PUBLIC_KEY = process.env.PAGOPAR_PUBLIC_KEY;
@@ -40,17 +41,21 @@ export const createTransaccion = async (req: Request, res: Response) => {
     // Hacemos el request a Pagopar
     const response = await axios.post(PAGOPAR_API_URL!, payload, { headers });
 
-
-    // const respuesta = response.data.resultado[0];
-    // console.log("🚀 ~ Respuesta de Pagopar:", respuesta);
-
-    // // Retornamos la respuesta al frontend
-    // return res.json(respuesta);
-
+    // Obtener respuesta de Pagopar
     const respuesta = response.data?.resultado?.[0];
-if (!respuesta || respuesta === "E" || respuesta === "L") {
-  return res.status(400).json({ message: "Error en Pagopar", data: response.data });
-}
+
+    if (!respuesta || respuesta === "E" || respuesta === "L") {
+      return res.status(400).json({
+        message: "Error en Pagopar",
+        data: response.data,
+      });
+    }
+
+    // ✅ Retornar respuesta al frontend
+    return res.json({
+      message: "Transacción creada correctamente",
+      data: respuesta,
+    });
 
   } catch (error: any) {
     console.error("Error creando transacción:", error.response?.data || error.message);
@@ -58,8 +63,8 @@ if (!respuesta || respuesta === "E" || respuesta === "L") {
     return res.status(500).json({
       message: "Error al crear transacción",
       error: error.response?.data || error.message,
-    });
-  }
+    });
+  }
 };
 
 

@@ -67,9 +67,11 @@ import { verifyToken } from './middleware/auth';
 // --- Inicialización de Express ---
 const app = express();
 const httpServer = createServer(app);
+
+
 const io = new Server(httpServer, {
   cors: {
-    origin: 'https://foodsionmix.com', // En producción, configura esto con tu dominio específico
+    origin: ['https://foodsionmix.com', 'https://www.foodsionmix.com'],
     methods: ['GET', 'POST'],
     credentials: true
   },
