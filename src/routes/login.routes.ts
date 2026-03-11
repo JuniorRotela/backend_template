@@ -1,9 +1,10 @@
 // routes/login.routes.ts
 import { Router } from 'express';
-import { loginController } from '../controllers/login.controllers';
+
 import { loginValidate } from '../validators/login.validation';
 import { verifyToken } from '../middleware/auth';
 import { getUsers, getOneUser } from '../controllers/user.controllers';
+import { loginController } from '../controllers/login.controllers';
 // import { getActivity, getGarden, getOneGarden, createGarden, updateGarden, deleteGarden } from '../controllers/garden.controllers';
 
 const router = Router();
