@@ -543,7 +543,7 @@ app.use(MarcacionRoutes);
 app.use(transaccion);
 app.use(protectedRoutes);
 app.use(orden);
-app.use(verifyToken);
+// app.use(verifyToken);
 app.use(userRoutes);
 app.use(Empresas);
 app.use(Palitero);

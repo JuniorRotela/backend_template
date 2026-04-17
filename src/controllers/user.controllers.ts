@@ -10,8 +10,8 @@ import User from "../interface/user";
 
 
 export const createUser = async (req: Request, res: Response) => {
-  const tableName = "user"; // Reemplaza con el nombre de tu tabla
-  const data: User = req.body;
+  const tableName = "users"; // Reemplaza con el nombre de tu tabla
+  const data = req.body;
   try {
     //  console.log("data desde controlador",data)
     // Utiliza el servicio para insertar los datos

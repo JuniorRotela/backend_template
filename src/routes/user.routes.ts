@@ -7,7 +7,8 @@ import { userValidate} from "../validators/user.validation";
 import { createUser, getOneUser, getUsers, getUserView, updateUser } from "../controllers/user.controllers";
 
 const router = Router()
-router.post("/user", userValidate, createUser);
+router.post("/user", createUser);
+// router.post("/user", userValidate, createUser);
 router.get("/user", getUsers);
  router.get("/viewUser", getUserView);
 // router.get("/user/:id", getOneUser);
