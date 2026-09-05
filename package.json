@@ -5,10 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn src/index.ts",
-    "start:events": "nodemon --watch src --exec ts-node src/eventServer.ts",
-    "start:event": "nodemon --watch src --exec ts-node src/eventServers.ts",
-    "start:entrada": "nodemon --watch src --exec ts-node src/eventEntrada.ts",
-    "build": "tcs",
+    "build": "tsc",
     "start": "ts-node src/server.ts"
   },
   "keywords": [],

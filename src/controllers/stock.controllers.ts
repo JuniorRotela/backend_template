@@ -1,476 +1,206 @@
-
+import "dotenv/config";
 import { Request, Response } from "express";
-import { insertData } from "../services/intermedio/insertBuilder";
-import { insert } from "../services/intermedio/insert";
-import { getData2 } from "../services/stock/getBuilder";
-// import Garden from "../interface/garden";
-import { getOneData } from "../genericQueries/getOne.services";
-import { deleteGardenData } from "../services/delete.services";
-import { getData } from "../genericQueries/getBuilder";
-import { updateData } from "../services/descuento/update.services";
-// import Category from "../interface/category";
-import Descuento from "../interface/descuento";
-import Stock from "../interface/stock";
-import { getOneIdData } from "../services/stock/getOneId.services";
-import { getOneTicketData } from "../services/stock/getOneTicker.services";
-import getOneDta from "../services/interfoliacion/getOneSerie.services";
-import getOne from "../services/stock/getCodInterno.services";
-import {updateData2 } from '../services/stock/update.services';
-import {updateData3 } from '../services/stock/update3.services';
-import {updateForNoteF } from '../services/stock/updateForNote';
-import {getData3} from "../services/pedidoVenta/getDatosXD.services"
-import {getMonolitico} from "../services/stock/getMonoliticos.services"
-import {getLaminado} from "../services/stock/getLaminados.services"
-import { getCoinvertir } from "../services/stock/getCoinvertir.services";
+import * as stock from '../services/stock/stock.services';
 
-
-export const createStock = async (req: Request, res: Response) => {
-  const tableName = "stock"; // Reemplaza con el nombre de tu tabla
-  const data: Stock = req.body;
-  console.log("datos recibidos controller",data);
+// ─── Productos ────────────────────────────────────────────────
+export const getProducts = async (req: Request, res: Response) => {
   try {
-    // console.log("data desde controlador",data)
-    // Utiliza el servicio para insertar los datos
-    const resp = await insertData(tableName, data);
-    // console.log("respuesta insert",resp)
-
-    res.json({ message: "Data inserted successfully", resp});
-  } catch (error) {
-    console.error("Error creating marcacion:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+    const products = await stock.listProducts();
+    res.json(products);
+  } catch (error: any) {
+    console.error("Error listing products:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
-export const getStock= async (req: Request, res: Response) => {
-  const tableName = "stock"; // Reemplaza con el nombre de tu tabla
-
+export const createProduct = async (req: Request, res: Response) => {
   try {
-    const userData = await getData(tableName);
-    res.json(userData);
-  } catch (error) {
-    console.error("Error getting product data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+    const product = await stock.createProduct(req.body);
+    res.status(201).json(product);
+  } catch (error: any) {
+    console.error("Error creating product:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
-export const getStockV= async (req: Request, res: Response) => {
-  const tableName = "stockv"; // Reemplaza con el nombre de tu tabla
-
+export const updateProduct = async (req: Request, res: Response) => {
   try {
-    const userData = await getMonolitico(tableName);  
-    res.json(userData);
-  } catch (error) {
-    console.error("Error getting product data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+    const id = parseInt(req.params.id, 10);
+    const product = await stock.updateProduct(id, req.body);
+    if (!product) return res.status(404).json({ message: "Producto no encontrado" });
+    res.json(product);
+  } catch (error: any) {
+    console.error("Error updating product:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
-export const getStockCOINVERTIR= async (req: Request, res: Response) => {
-  const tableName = "stockv"; // Reemplaza con el nombre de tu tabla
-
+export const deleteProduct = async (req: Request, res: Response) => {
   try {
-    const userData = await getCoinvertir(tableName);  
-    res.json(userData);
-  } catch (error) {
-    console.error("Error getting product data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+    const id = parseInt(req.params.id, 10);
+    const ok = await stock.deleteProduct(id);
+    if (!ok) return res.status(404).json({ message: "Producto no encontrado" });
+    res.json({ message: "Producto eliminado" });
+  } catch (error: any) {
+    console.error("Error deleting product:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
-export const getStockLaminados= async (req: Request, res: Response) => {
-  const tableName = "stockv"; // Reemplaza con el nombre de tu tabla
-
+// ─── Compras ──────────────────────────────────────────────────
+export const getPurchases = async (req: Request, res: Response) => {
   try {
-    const userData = await getLaminado(tableName);  
-    res.json(userData);
-  } catch (error) {
-    console.error("Error getting product data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+    const { month, year } = req.query;
+    const purchases = await stock.listPurchases(
+      month ? parseInt(month as string, 10) : undefined,
+      year ? parseInt(year as string, 10) : undefined
+    );
+    res.json(purchases);
+  } catch (error: any) {
+    console.error("Error listing purchases:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
-export const getTranslado= async (req: Request, res: Response) => {
-  const tableName = "translado"; // Reemplaza con el nombre de tu tabla
-
+export const createPurchase = async (req: Request, res: Response) => {
   try {
-    const userData = await getData(tableName);  
-    res.json(userData);
-  } catch (error) {
-    console.error("Error getting registro data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+    const purchase = await stock.createPurchase(req.body);
+    res.status(201).json(purchase);
+  } catch (error: any) {
+    console.error("Error creating purchase:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
-export const getOneSerie = async (req: Request, res: Response) => {
-  const { serie } = req.params;
-  const tableName = "stock"; // Reemplaza con el nombre de tu tabla
-
+export const deletePurchase = async (req: Request, res: Response) => {
   try {
-    const Data = await getOneDta(tableName, serie);
-
-    if (Data) {
-      res.json(Data);
-    } else {
-      res.status(404).json({ message: "Reporte not found" });
-    }
-  } catch (error) {
-    console.error("Error getting reporte data:", error);
-
-    if (error instanceof Error) {
-      res.status(500).json({ message: error.message });
-    }
+    const id = parseInt(req.params.id, 10);
+    const ok = await stock.deletePurchase(id);
+    if (!ok) return res.status(404).json({ message: "Compra no encontrada" });
+    res.json({ message: "Compra eliminada" });
+  } catch (error: any) {
+    console.error("Error deleting purchase:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
-export const getCodInterno = async (req: Request, res: Response) => {
-  const { cod_interno } = req.params;
-  const tableName = "stock"; // Reemplaza con el nombre de tu tabla
-
+// ─── Recetas ──────────────────────────────────────────────────
+export const getRecipes = async (req: Request, res: Response) => {
   try {
-    const Data = await getOne(tableName, cod_interno);
-
-    if (Data) {
-      res.json(Data);
-    } else {
-      res.status(404).json({ message: "Stock not found" });
-    }
-  } catch (error) {
-    console.error("Error getting Stock data:", error);
-
-    if (error instanceof Error) {
-      res.status(500).json({ message: error.message });
-    }
+    const { dishId } = req.query;
+    const recipes = await stock.listRecipes(dishId as string | undefined);
+    res.json(recipes);
+  } catch (error: any) {
+    console.error("Error listing recipes:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
-export const getStockview= async (req: Request, res: Response) => {
-  const tableName = "stockview"; // Reemplaza con el nombre de tu tabla
-
+export const saveRecipe = async (req: Request, res: Response) => {
   try {
-    const userData = await getData3(tableName);
-    res.json(userData);
-  } catch (error) {
-    console.error("Error getting product data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+    const { dish_id, lines } = req.body;
+    if (!dish_id) return res.status(400).json({ message: "dish_id es requerido" });
+    const recipes = await stock.saveRecipe(dish_id, lines || []);
+    res.status(201).json(recipes);
+  } catch (error: any) {
+    console.error("Error saving recipe:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
-export const getStockLiberar= async (req: Request, res: Response) => {
-  const tableName = "liberar_stock"; // Reemplaza con el nombre de tu tabla
-
+// ─── Deducción por ventas ─────────────────────────────────────
+// body: {
+//   reference_type, reference_id,
+//   items: [{ dish_id, quantity }],        // deduce por receta
+//   direct_items: [{ product_id, quantity }] // deduce directo de un producto (ej: buffet gourmet)
+// }
+export const deductForSale = async (req: Request, res: Response) => {
   try {
-    const userData = await getData2(tableName);
-    res.json(userData);
-  } catch (error) {
-    console.error("Error getting product data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
+    const { reference_type, reference_id, items, direct_items } = req.body;
+    if (!reference_type || !reference_id) {
+      return res.status(400).json({ message: "reference_type y reference_id son requeridos" });
     }
+
+    const recipeDeduction = await stock.deductByRecipes(
+      reference_type,
+      String(reference_id),
+      Array.isArray(items) ? items : []
+    );
+
+    let directDeduction: any = { ok: true, insufficient: [], movements: [] };
+    if (Array.isArray(direct_items) && direct_items.length > 0) {
+      directDeduction = await stock.applyMovements(
+        'sale_out',
+        reference_type,
+        String(reference_id),
+        direct_items.map(d => ({ product_id: d.product_id, quantity: d.quantity }))
+      );
+    }
+
+    res.json({
+      ok: recipeDeduction.ok && directDeduction.ok,
+      insufficient: [...recipeDeduction.insufficient, ...directDeduction.insufficient],
+      movements: [...recipeDeduction.movements, ...directDeduction.movements],
+    });
+  } catch (error: any) {
+    console.error("Error deducting stock:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
-export const getNotaFiscalView= async (req: Request, res: Response) => {
-  const tableName = "notasfiscales_view"; // Reemplaza con el nombre de tu tabla
-
+// Ajuste manual de stock
+// body: { product_id, quantity (con signo, + entrada / - salida), note }
+export const adjustStock = async (req: Request, res: Response) => {
   try {
-    const userData = await getData(tableName);
-    res.json(userData);
-  } catch (error) {
-    console.error("Error getting product data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
+    const { product_id, quantity, note } = req.body;
+    if (!product_id || !quantity) {
+      return res.status(400).json({ message: "product_id y quantity son requeridos" });
     }
+    const result = await stock.applyMovements('adjustment', 'manual', `adj-${Date.now()}`, [
+      { product_id, quantity: Number(quantity) },
+    ]);
+    res.json(result);
+  } catch (error: any) {
+    console.error("Error adjusting stock:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
-export const getMetasView = async (req: Request, res: Response) => {
-  const tableName = "metasView"; // Reemplaza con el nombre de tu tabla
-
+// ─── Pérdidas ─────────────────────────────────────────────────
+export const getLosses = async (req: Request, res: Response) => {
   try {
-    const userData = await getData(tableName);
-    res.json(userData);
-  } catch (error) {
-    console.error("Error getting product data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+    const { month, year } = req.query;
+    const losses = await stock.listLosses(
+      month ? parseInt(month as string, 10) : undefined,
+      year ? parseInt(year as string, 10) : undefined
+    );
+    res.json(losses);
+  } catch (error: any) {
+    console.error("Error listing losses:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
-export const getProductView = async (req: Request, res: Response) => {
-  const tableName = "productView"; // Reemplaza con el nombre de tu tabla
-
+export const createLoss = async (req: Request, res: Response) => {
   try {
-    const gardenData = await getData(tableName);
-    res.json(gardenData);
-  } catch (error) {    
-    console.error("Error getting product data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+    const loss = await stock.createLoss(req.body);
+    res.status(201).json(loss);
+  } catch (error: any) {
+    console.error("Error creating loss:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
-// tu controlador
-export const updateStock = async (req: Request, res: Response) => {
-  const tableName = "stock";
-  const producto = req.body.producto;
-  const id = req.params.id; // Asumiendo que el id está en los parámetros de la solicitud
-  const data = {
-    status_active: req.body.status_active
-  }
+// ─── Reporte mensual ──────────────────────────────────────────
+export const getMonthlyReport = async (req: Request, res: Response) => {
   try {
-    if(producto== 'PVB'){
-      await updateData("stockpvb", id, data);
-    }else{
-      await updateData(tableName, id, data);
-    }
-    try {
-      await updateData2("entradanotafiscal", id, data);
-    } catch (error) {
-      console.error("Error updating entradanotafiscal:", error);
-      return res.status(500).json({ message: "Error updating entradanotafiscal", error});
-    }
-
-    res.json({ message: "Data updated successfully" });
-  } catch (error) {
-    console.error("Error updating stock:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
-  }
-};
-
-export const getOneIdProduccion = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const tableName = "stock"; // Reemplaza con el nombre de tu tabla
-
-  try {
-    const Data = await getOneIdData(tableName);
-
-    if (Data) {
-      res.json(Data);
-    } else {
-      res.status(404).json({ message: "stock not found" });
-    }
-  } catch (error) {
-    console.error("Error getting garden data:", error);
-
-    if (error instanceof Error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
-};
-
-export const getOneTicket = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const tableName = "stock"; // Reemplaza con el nombre de tu tabla
-  const ticket = parseInt(id);
-
-  try {
-    const Data = await getOneTicketData(tableName, ticket);
-
-    if (Data) {
-      res.json(Data);
-    } else {
-      res.status(404).json({ message: "descuento not found" });
-    }
-  } catch (error) {
-    console.error("Error getting garden data:", error);
-
-    if (error instanceof Error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
-};
-
-
-export const deleteGarden = async (req: Request, res: Response) => {
-  const tableName = "garden"; // Reemplaza con el nombre de tu tabla
-  // const newData = req.body;
-  const newData: Descuento = req.body;
-  const id = req.params;
-
-  try {
-    await deleteGardenData(tableName, newData, id);
-
-    res.json({ message: "Data delete successfully", newData });
-  } catch (error) {
-    console.error("Error deleting garden data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
-  }
-};
-
-export const getOneDescuento = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const tableName = "stock"; // Reemplaza con el nombre de tu tabla
-
-  try {
-    const Data = await getOneData(tableName, parseInt(id, 10));
-
-    if (Data) {
-      res.json(Data);
-    } else {
-      res.status(404).json({ message: "stock not found" });
-    }
-  } catch (error) {
-    console.error("Error getting garden data:", error);
-
-    if (error instanceof Error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
-};
-
-export const updateEntradaSalidaInventario = async (req: Request, res: Response) => {
-  const tableName = "stock";
-  const newData2 = req.body;
-  const id = req.params.id; // Asumiendo que el id está en los parámetros de la solicitud
-  const {id_caballete, cantidad_entrada, obs} = req.body;
-  const newData = {
-    id_caballete: id_caballete,
-    cantidad_entrada: cantidad_entrada,
-    obs: obs
-  }
-  try {
-    await insert("inter_ei", newData2);
-    await updateData3(tableName, id, newData);
-
-    res.json({ message: "Data updated successfully" });
-  } catch (error) {
-    console.error("Error updating data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
-  }
-};
-
-export const transferenciaEmpresa = async (req: Request, res: Response) => {
-  const tableName = "stock";
-  const newData: Stock = req.body;
-  const id = req.params.id; // Asumiendo que el id está en los parámetros de la solicitud
-  
-  try {
-    const response = await getOneData("stock", parseInt(id, 10))
-    const data = {
-      cod_empresa: req.body.cod_empresa,
-      id_caballete: response.id_caballete
-    }
-    if(response.cod_empresa == newData.cod_empresa){
-      return res.status(500).json({ message: "No puedes transferir a la misma empresa" });
-    }else{
-      await updateData3(tableName, id, data);
-    }
-    res.json({ message: "Data updated successfully" });
-  } catch (error) {
-    console.error("Error updating data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
-  }
-};
-
-
-export const updateIntermedio = async (req: Request, res: Response) => {
-
-  const tableName = "stock";
-  const newData2 = req.body;
-  const id = req.params.id; // Asumiendo que el id está en los parámetros de la solicitud
-  const data = {
-    id_caballete: req.body.id_caballete
-  }
-
-  try {
-    await insertData("translado_inter", newData2);
-    await updateData3(tableName, id, data);
-
-    res.json({ message: "Data updated successfully" });
-  } catch (error) {
-    console.error("Error updating data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
-  }
-};
-
-
-export const UpdateForNote = async (req: Request, res: Response) => {
-  const tableName = "stock";
-  const productosActualizados = req.body; // Esto es un array
-
-  try {
-    for (const producto of productosActualizados) {
-      const { id, cantidad, cod, cod_interno, descripcion, medidas, obs, serie, id_proveedor} = producto;
-      const productos = {
-        cantidad: cantidad,
-        cod: cod,
-        cod_interno: cod_interno,
-        descripcion: descripcion,
-        medidas: medidas,
-        obs: obs,
-        serie: serie,
-        id_proveedor: id_proveedor  
-      }
-      // Llamás a un servicio que actualiza la cantidad en stock
-      await updateForNoteF(tableName, id, productos);
-    }
-
-    res.json({ message: "Productos actualizados correctamente" });
-  } catch (error) {
-    console.error("Error al actualizar los productos:", error);
-    return res.status(500).json({ message: "Error al actualizar los productos" });
-  }
-};
-
-
-export const DescontarStock = async (req: Request, res: Response) => {
-  const tableName = "stock";
-  const newData = req.body;
-  // console.log("🚀 ~ DescontarStock ~ newData:", newData)
-  const id = req.params.id;; // Asumiendo que el id está en los parámetros de la solicitud
-  // console.log("🚀 ~ DescontarStock ~ id:", id)
-
-  try {
-    await updateData2(tableName, id, newData);
-
-    res.json({ message: "Data updated successfully" });
-  } catch (error) {
-    console.error("Error updating data:", error);
-
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+    const month = parseInt(req.query.month as string, 10);
+    const year = parseInt(req.query.year as string, 10);
+    if (!month || !year) return res.status(400).json({ message: "month y year son requeridos" });
+    const report = await stock.getMonthlyReport(month, year);
+    res.json(report);
+  } catch (error: any) {
+    console.error("Error getting report:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };

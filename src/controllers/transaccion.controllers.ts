@@ -1,4 +1,3 @@
-import { data } from 'cheerio/dist/commonjs/api/attributes';
 import "dotenv/config";
 import { Request, Response } from "express";
 import axios from "axios";

@@ -2,8 +2,7 @@
 
 import { Request, Response } from 'express';
 import { verifyUser } from '../services/login/login.services';
-import { generateToken } from '../middleware/auth'; // Asegúrate de ajustar la ruta según tu estructura de archivos
-import getOneHorarios from '../services/login/getOneHorarios.services';
+import { generateToken } from '../middleware/auth';
 
 export const loginController = async (req: Request, res: Response) => {
   const { username, password } = req.body;

@@ -19,6 +19,12 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { User } from "./entities/User"; // importa tus entidades reales
+import { StockProduct } from "./entities/StockProduct";
+import { StockPurchase } from "./entities/StockPurchase";
+import { StockPurchaseItem } from "./entities/StockPurchaseItem";
+import { DishRecipe } from "./entities/DishRecipe";
+import { StockMovement } from "./entities/StockMovement";
+import { StockLoss } from "./entities/StockLoss";
 
 export const AppDataSource = new DataSource({
   type: "mysql",
@@ -27,7 +33,7 @@ export const AppDataSource = new DataSource({
   username: "u805022007_root",
   password: "Foodmix2025$",
   database: "u805022007_foodmix",
-  entities: [User], // acá van tus entidades
+  entities: [User, StockProduct, StockPurchase, StockPurchaseItem, DishRecipe, StockMovement, StockLoss], // acá van tus entidades
   logging: true,
   synchronize: true,
 });
