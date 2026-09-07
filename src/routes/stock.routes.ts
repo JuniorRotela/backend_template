@@ -14,6 +14,7 @@ import {
   getLosses,
   createLoss,
   getMonthlyReport,
+  getRangeReport,
 } from "../controllers/stock.controllers";
 
 const router = Router();
@@ -45,5 +46,8 @@ router.post("/stock/losses", createLoss);
 
 // Reporte mensual (gasto por compra)
 router.get("/stock/report", getMonthlyReport);
+
+// Reporte por rango de fechas (dashboard de ganancias)
+router.get("/stock/report/range", getRangeReport);
 
 export default router;

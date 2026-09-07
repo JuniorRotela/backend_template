@@ -18,6 +18,13 @@ export class StockPurchase {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  // Descuento que la tienda/proveedor otorga por toda la compra
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  discount_percent: number;
+
+  @Column({ type: 'decimal', precision: 14, scale: 2, default: 0 })
+  discount_amount: number;
+
   @OneToMany(() => StockPurchaseItem, item => item.purchase)
   items: StockPurchaseItem[];
 

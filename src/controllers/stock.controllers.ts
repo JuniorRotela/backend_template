@@ -204,3 +204,16 @@ export const getMonthlyReport = async (req: Request, res: Response) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ─── Reporte por rango de fechas (dashboard de ganancias) ─────
+export const getRangeReport = async (req: Request, res: Response) => {
+  try {
+    const { from, to } = req.query;
+    if (!from || !to) return res.status(400).json({ message: "from y to (YYYY-MM-DD) son requeridos" });
+    const report = await stock.getRangeReport(from as string, to as string);
+    res.json(report);
+  } catch (error: any) {
+    console.error("Error getting range report:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};

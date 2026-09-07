@@ -53,6 +53,9 @@ export const listPurchases = async (month?: number, year?: number): Promise<any[
   return purchases.map(p => ({
     ...p,
     total_cost: toNumber(p.total_cost),
+    discount_percent: toNumber(p.discount_percent),
+    discount_amount: toNumber(p.discount_amount),
+    subtotal: fmt(toNumber(p.total_cost) + toNumber(p.discount_amount)),
     items: (p.items || []).map(i => ({
       ...i,
       quantity: toNumber(i.quantity),
@@ -66,6 +69,7 @@ export const createPurchase = async (data: {
   supplier?: string;
   purchase_date: string;
   notes?: string;
+  discount_percent?: number;
   items: { product_id: number; quantity: number; unit_cost: number }[];
 }): Promise<any> => {
   return AppDataSource.manager.transaction(async (manager) => {
@@ -74,21 +78,25 @@ export const createPurchase = async (data: {
     const productRepo = manager.getRepository(StockProduct);
     const movementRepo = manager.getRepository(StockMovement);
 
+    const discountPercent = Math.max(0, toNumber(data.discount_percent));
+    const discountFactor = discountPercent > 0 ? (100 - discountPercent) / 100 : 1;
+
     const purchase = await purchaseRepo.save(purchaseRepo.create({
       supplier: data.supplier || '',
       purchase_date: data.purchase_date,
       notes: data.notes || '',
+      discount_percent: discountPercent,
       total_cost: 0,
     }));
 
-    let total = 0;
+    let subtotal = 0;
     const savedItems: any[] = [];
 
     for (const line of data.items) {
       const qty = fmt(toNumber(line.quantity));
       const unitCost = toNumber(line.unit_cost);
       const lineTotal = fmt(qty * unitCost);
-      total += lineTotal;
+      subtotal += lineTotal;
 
       const item = await itemRepo.save(itemRepo.create({
         purchase_id: purchase.id,
@@ -115,11 +123,19 @@ export const createPurchase = async (data: {
       savedItems.push({ ...item, quantity: qty, unit_cost: unitCost, total_cost: lineTotal });
     }
 
-    await purchaseRepo.update(purchase.id, { total_cost: fmt(total) });
+    const discountAmount = fmt(subtotal - subtotal * discountFactor);
+    const totalCost = fmt(subtotal - discountAmount);
+
+    await purchaseRepo.update(purchase.id, {
+      total_cost: totalCost,
+      discount_amount: discountAmount,
+    });
 
     return {
       ...purchase,
-      total_cost: fmt(total),
+      subtotal: fmt(subtotal),
+      discount_amount: discountAmount,
+      total_cost: totalCost,
       items: savedItems,
     };
   });
@@ -357,12 +373,19 @@ export const getMonthlyReport = async (month: number, year: number): Promise<any
 
   const spendByProduct: Record<number, { product_id: number; name: string; quantity: number; total_cost: number }> = {};
   let totalSpend = 0;
+  let totalDiscount = 0;
 
   purchases.forEach(p => {
+    const discountFactor = toNumber(p.discount_percent) > 0
+      ? (100 - toNumber(p.discount_percent)) / 100
+      : 1;
+    totalDiscount += fmt(toNumber(p.discount_amount));
+
     (p.items || []).forEach(item => {
       const id = item.product_id;
       const qty = toNumber(item.quantity);
-      const cost = toNumber(item.total_cost);
+      // Prorratear el descuento global de la compra en cada línea
+      const cost = fmt(toNumber(item.total_cost) * discountFactor);
       totalSpend += cost;
       if (!spendByProduct[id]) {
         spendByProduct[id] = { product_id: id, name: item.product?.name || `Producto #${id}`, quantity: 0, total_cost: 0 };
@@ -400,10 +423,68 @@ export const getMonthlyReport = async (month: number, year: number): Promise<any
     month,
     year,
     totalSpend: fmt(totalSpend),
+    totalDiscount: fmt(totalDiscount),
     spendByProduct: Object.values(spendByProduct).sort((a, b) => b.total_cost - a.total_cost),
     purchases,
     losses,
     totalLossValue: fmt(losses.reduce((s, l) => s + toNumber(l.estimated_cost), 0)),
     consumptionByProduct: Object.values(consumptionByProduct).sort((a, b) => b.quantity - a.quantity),
+  };
+};
+
+// ─── Reporte por rango de fechas (para el dashboard de ganancias) ──
+export const getRangeReport = async (from: string, to: string): Promise<any> => {
+  const purchaseRepo = AppDataSource.getRepository(StockPurchase);
+  const lossRepo = AppDataSource.getRepository(StockLoss);
+
+  const purchases = await purchaseRepo
+    .createQueryBuilder('p')
+    .leftJoinAndSelect('p.items', 'items')
+    .leftJoinAndSelect('items.product', 'product')
+    .where('p.purchase_date >= :from AND p.purchase_date <= :to', { from, to })
+    .orderBy('p.purchase_date', 'ASC')
+    .getMany();
+
+  const losses = await lossRepo
+    .createQueryBuilder('l')
+    .leftJoinAndSelect('l.product', 'product')
+    .where('l.loss_date >= :from AND l.loss_date <= :to', { from, to })
+    .orderBy('l.loss_date', 'ASC')
+    .getMany();
+
+  const spendByProduct: Record<number, { product_id: number; name: string; quantity: number; total_cost: number }> = {};
+  let totalSpend = 0;
+  let totalDiscount = 0;
+
+  purchases.forEach(p => {
+    const discountFactor = toNumber(p.discount_percent) > 0
+      ? (100 - toNumber(p.discount_percent)) / 100
+      : 1;
+    totalDiscount += fmt(toNumber(p.discount_amount));
+
+    (p.items || []).forEach(item => {
+      const id = item.product_id;
+      const qty = toNumber(item.quantity);
+      const cost = fmt(toNumber(item.total_cost) * discountFactor);
+      totalSpend += cost;
+      if (!spendByProduct[id]) {
+        spendByProduct[id] = { product_id: id, name: item.product?.name || `Producto #${id}`, quantity: 0, total_cost: 0 };
+      }
+      spendByProduct[id].quantity = fmt(spendByProduct[id].quantity + qty);
+      spendByProduct[id].total_cost = fmt(spendByProduct[id].total_cost + cost);
+    });
+  });
+
+  const totalLossValue = fmt(losses.reduce((s, l) => s + toNumber(l.quantity) * (toNumber(l.product?.cost_price) / (l.product?.unit_type === 'weight' ? 1000 : 1)), 0));
+
+  return {
+    from,
+    to,
+    totalSpend: fmt(totalSpend),
+    totalDiscount: fmt(totalDiscount),
+    purchasesCount: purchases.length,
+    spendByProduct: Object.values(spendByProduct).sort((a, b) => b.total_cost - a.total_cost),
+    lossesCount: losses.length,
+    totalLossValue,
   };
 };
