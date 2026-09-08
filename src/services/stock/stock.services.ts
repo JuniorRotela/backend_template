@@ -20,7 +20,7 @@ export const isWeightLike = (unitType?: string): boolean =>
 
 // ─── Productos ────────────────────────────────────────────────
 export const listProducts = async (): Promise<StockProduct[]> => {
-  return AppDataSource.getRepository(StockProduct).find({ order: { name: 'ASC' } });
+  return AppDataSource.getRepository(StockProduct).find({ where: { is_active: true }, order: { name: 'ASC' } });
 };
 
 export const createProduct = async (data: Partial<StockProduct>): Promise<StockProduct> => {
@@ -39,7 +39,8 @@ export const updateProduct = async (id: number, data: Partial<StockProduct>): Pr
 
 export const deleteProduct = async (id: number): Promise<boolean> => {
   const repo = AppDataSource.getRepository(StockProduct);
-  const result = await repo.delete({ id });
+  // Soft delete: marca como inactivo para conservar el histórico de movimientos/compras/recetas
+  const result = await repo.update({ id }, { is_active: false });
   return (result.affected || 0) > 0;
 };
 
