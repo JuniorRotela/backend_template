@@ -1,6 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
 
-export type ProductUnitType = 'unit' | 'weight';
+export type ProductUnitType = 'unit' | 'kg' | 'g' | 'ml' | 'weight';
 
 @Entity('stock_products')
 export class StockProduct {
@@ -13,19 +13,19 @@ export class StockProduct {
   @Column({ length: 80, default: 'General' })
   category: string;
 
-  // 'unit' = se controla por unidades | 'weight' = se controla por gramos
-  @Column({ type: 'enum', enum: ['unit', 'weight'], default: 'unit' })
+  // 'unit' = unidades | 'kg' = kilogramos (stock en gramos) | 'g' = gramos | 'ml' = mililitros | 'weight' = legacy (gramos)
+  @Column({ type: 'enum', enum: ['unit', 'kg', 'g', 'ml', 'weight'], default: 'unit' })
   unit_type: ProductUnitType;
 
-  // Stock actual. Si unit_type = 'weight', está en gramos.
+  // Stock actual en la unidad base: unidades para 'unit', gramos para 'kg'/'g'/'weight', mililitros para 'ml'.
   @Column({ type: 'decimal', precision: 14, scale: 3, default: 0 })
   stock_quantity: number;
 
-  // Stock mínimo de alerta (misma unidad base: unidades o gramos)
+  // Stock mínimo de alerta (misma unidad base)
   @Column({ type: 'decimal', precision: 14, scale: 3, default: 0 })
   min_stock: number;
 
-  // Costo por unidad base (unidad o kg)
+  // Costo por unidad de presentación (unidad, kg, g o ml según unit_type)
   @Column({ type: 'decimal', precision: 14, scale: 2, default: 0 })
   cost_price: number;
 

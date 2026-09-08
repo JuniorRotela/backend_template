@@ -9,6 +9,15 @@ import { StockLoss } from "../../entities/StockLoss";
 const toNumber = (v: any): number => Number(v || 0);
 const fmt = (n: number): number => Math.round(n * 1000) / 1000;
 
+// Factor de conversión del costo: cost_price está por unidad de presentación.
+// Para kg/weight (stock en gramos) se divide por 1000 para obtener costo por gramo.
+const costFactorFor = (unitType?: string): number =>
+  unitType === 'kg' || unitType === 'weight' ? 1000 : 1;
+
+// Indica si el producto se maneja por peso (gramos) o por volumen (ml) o unidades
+export const isWeightLike = (unitType?: string): boolean =>
+  unitType === 'kg' || unitType === 'g' || unitType === 'weight';
+
 // ─── Productos ────────────────────────────────────────────────
 export const listProducts = async (): Promise<StockProduct[]> => {
   return AppDataSource.getRepository(StockProduct).find({ order: { name: 'ASC' } });
@@ -333,7 +342,7 @@ export const listLosses = async (month?: number, year?: number): Promise<any[]> 
     quantity: toNumber(l.quantity),
     product_name: l.product?.name,
     product_unit_type: l.product?.unit_type,
-    estimated_cost: fmt(toNumber(l.quantity) * (toNumber(l.product?.cost_price) / (l.product?.unit_type === 'weight' ? 1000 : 1))),
+    estimated_cost: fmt(toNumber(l.quantity) * (toNumber(l.product?.cost_price) / costFactorFor(l.product?.unit_type))),
   }));
 };
 
@@ -378,7 +387,7 @@ export const createLoss = async (data: {
       quantity: qty,
       product_name: product.name,
       product_unit_type: product.unit_type,
-      estimated_cost: fmt(qty * (toNumber(product.cost_price) / (product.unit_type === 'weight' ? 1000 : 1))),
+      estimated_cost: fmt(qty * (toNumber(product.cost_price) / costFactorFor(product.unit_type))),
     };
   });
 };
@@ -397,7 +406,7 @@ export const getMonthlyReport = async (month: number, year: number): Promise<any
     .orderBy('p.purchase_date', 'ASC')
     .getMany();
 
-  const spendByProduct: Record<number, { product_id: number; name: string; quantity: number; total_cost: number }> = {};
+  const spendByProduct: Record<number, { product_id: number; name: string; unit_type: string; quantity: number; total_cost: number }> = {};
   let totalSpend = 0;
   let totalDiscount = 0;
 
@@ -414,7 +423,7 @@ export const getMonthlyReport = async (month: number, year: number): Promise<any
       const cost = fmt(toNumber(item.total_cost) * discountFactor);
       totalSpend += cost;
       if (!spendByProduct[id]) {
-        spendByProduct[id] = { product_id: id, name: item.product?.name || `Producto #${id}`, quantity: 0, total_cost: 0 };
+        spendByProduct[id] = { product_id: id, name: item.product?.name || `Producto #${id}`, unit_type: item.product?.unit_type || 'unit', quantity: 0, total_cost: 0 };
       }
       spendByProduct[id].quantity = fmt(spendByProduct[id].quantity + qty);
       spendByProduct[id].total_cost = fmt(spendByProduct[id].total_cost + cost);
@@ -435,12 +444,12 @@ export const getMonthlyReport = async (month: number, year: number): Promise<any
     })
     .getMany();
 
-  const consumptionByProduct: Record<number, { product_id: number; name: string; quantity: number }> = {};
+  const consumptionByProduct: Record<number, { product_id: number; name: string; unit_type: string; quantity: number }> = {};
   salesMovements.forEach(m => {
     const id = m.product_id;
     const qty = Math.abs(toNumber(m.quantity));
     if (!consumptionByProduct[id]) {
-      consumptionByProduct[id] = { product_id: id, name: m.product?.name || `Producto #${id}`, quantity: 0 };
+      consumptionByProduct[id] = { product_id: id, name: m.product?.name || `Producto #${id}`, unit_type: m.product?.unit_type || 'unit', quantity: 0 };
     }
     consumptionByProduct[id].quantity = fmt(consumptionByProduct[id].quantity + qty);
   });
@@ -478,7 +487,7 @@ export const getRangeReport = async (from: string, to: string): Promise<any> => 
     .orderBy('l.loss_date', 'ASC')
     .getMany();
 
-  const spendByProduct: Record<number, { product_id: number; name: string; quantity: number; total_cost: number }> = {};
+  const spendByProduct: Record<number, { product_id: number; name: string; unit_type: string; quantity: number; total_cost: number }> = {};
   let totalSpend = 0;
   let totalDiscount = 0;
 
@@ -494,14 +503,14 @@ export const getRangeReport = async (from: string, to: string): Promise<any> => 
       const cost = fmt(toNumber(item.total_cost) * discountFactor);
       totalSpend += cost;
       if (!spendByProduct[id]) {
-        spendByProduct[id] = { product_id: id, name: item.product?.name || `Producto #${id}`, quantity: 0, total_cost: 0 };
+        spendByProduct[id] = { product_id: id, name: item.product?.name || `Producto #${id}`, unit_type: item.product?.unit_type || 'unit', quantity: 0, total_cost: 0 };
       }
       spendByProduct[id].quantity = fmt(spendByProduct[id].quantity + qty);
       spendByProduct[id].total_cost = fmt(spendByProduct[id].total_cost + cost);
     });
   });
 
-  const totalLossValue = fmt(losses.reduce((s, l) => s + toNumber(l.quantity) * (toNumber(l.product?.cost_price) / (l.product?.unit_type === 'weight' ? 1000 : 1)), 0));
+  const totalLossValue = fmt(losses.reduce((s, l) => s + toNumber(l.quantity) * (toNumber(l.product?.cost_price) / costFactorFor(l.product?.unit_type)), 0));
 
   return {
     from,
