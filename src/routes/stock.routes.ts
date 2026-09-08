@@ -10,6 +10,7 @@ import {
   getRecipes,
   saveRecipe,
   deductForSale,
+  restockForCancel,
   adjustStock,
   getLosses,
   createLoss,
@@ -36,6 +37,9 @@ router.post("/stock/recipes", saveRecipe);
 
 // Deducción de stock por venta
 router.post("/stock/deduct", deductForSale);
+
+// Reversión de stock por cancelación de pedido
+router.post("/stock/restock", restockForCancel);
 
 // Ajuste manual de stock
 router.post("/stock/adjust", adjustStock);

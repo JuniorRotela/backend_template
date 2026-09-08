@@ -1,7 +1,7 @@
 import { Column, Entity, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from "typeorm";
 import { StockProduct } from "./StockProduct";
 
-export type MovementType = 'purchase_in' | 'sale_out' | 'loss_out' | 'adjustment';
+export type MovementType = 'purchase_in' | 'sale_out' | 'loss_out' | 'adjustment' | 'restock_in';
 
 @Entity('stock_movements')
 export class StockMovement {
@@ -15,8 +15,8 @@ export class StockMovement {
   @JoinColumn({ name: 'product_id' })
   product: StockProduct;
 
-  // purchase_in (+) | sale_out (-) | loss_out (-) | adjustment (+/-)
-  @Column({ type: 'enum', enum: ['purchase_in', 'sale_out', 'loss_out', 'adjustment'] })
+  // purchase_in (+) | sale_out (-) | loss_out (-) | adjustment (+/-) | restock_in (+)
+  @Column({ type: 'enum', enum: ['purchase_in', 'sale_out', 'loss_out', 'adjustment', 'restock_in'] })
   type: MovementType;
 
   // Cantidad en unidad base (unidades o gramos), con signo

@@ -234,17 +234,19 @@ export const applyMovements = async (
         continue;
       }
 
-      // Para adjustment el quantity llega con signo ya incluido; para sale/loss siempre es negativo
+      // Para adjustment el quantity llega con signo ya incluido; para sale/loss siempre es negativo; para restock_in positivo
       let signedQty: number;
       if (type === 'adjustment') {
         signedQty = fmt(toNumber(d.quantity));
+      } else if (type === 'restock_in') {
+        signedQty = absQty;
       } else {
         signedQty = -absQty;
       }
 
       const current = fmt(toNumber(product.stock_quantity) + signedQty);
 
-      if (current < 0 && type !== 'adjustment') {
+      if (current < 0 && type !== 'adjustment' && type !== 'restock_in') {
         insufficient.push({ product_id: product.id, name: product.name, quantity: Math.abs(current) });
       }
 
@@ -255,7 +257,7 @@ export const applyMovements = async (
         quantity: signedQty,
         reference_type: referenceType,
         reference_id: referenceId,
-        note: type === 'sale_out' ? 'Salida por venta' : type === 'loss_out' ? 'Salida por pérdida' : 'Ajuste de stock',
+        note: type === 'sale_out' ? 'Salida por venta' : type === 'loss_out' ? 'Salida por pérdida' : type === 'restock_in' ? 'Devolución por cancelación' : 'Ajuste de stock',
       }));
       movements.push({ ...movement, quantity: signedQty });
     }
@@ -286,6 +288,30 @@ export const deductByRecipes = async (
   }
 
   return applyMovements('sale_out', referenceType, referenceId, deductions);
+};
+
+// Reversión de stock por receta (pedido cancelado / devolución). Suma de vuelta lo deducido.
+export const restockByRecipes = async (
+  referenceType: string,
+  referenceId: string,
+  items: { dish_id: string; quantity: number }[]
+): Promise<{ ok: boolean; insufficient: any[]; movements: any[] }> => {
+  const repo = AppDataSource.getRepository(DishRecipe);
+  const deductions: { product_id: number; quantity: number }[] = [];
+
+  for (const item of items) {
+    const recipes = await repo.find({ where: { dish_id: item.dish_id }, relations: ['product'] });
+    const qtyMultiplier = toNumber(item.quantity);
+
+    for (const recipe of recipes) {
+      deductions.push({
+        product_id: recipe.product_id,
+        quantity: fmt(toNumber(recipe.quantity) * qtyMultiplier),
+      });
+    }
+  }
+
+  return applyMovements('restock_in', referenceType, referenceId, deductions);
 };
 
 // ─── Pérdidas ─────────────────────────────────────────────────

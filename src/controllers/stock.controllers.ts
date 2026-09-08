@@ -148,6 +148,42 @@ export const deductForSale = async (req: Request, res: Response) => {
   }
 };
 
+// ─── Reversión de stock por cancelación ───────────────────────
+// body: { reference_type, reference_id, items: [{ dish_id, quantity }], direct_items: [{ product_id, quantity }] }
+export const restockForCancel = async (req: Request, res: Response) => {
+  try {
+    const { reference_type, reference_id, items, direct_items } = req.body;
+    if (!reference_type || !reference_id) {
+      return res.status(400).json({ message: "reference_type y reference_id son requeridos" });
+    }
+
+    const recipeRestock = await stock.restockByRecipes(
+      reference_type,
+      String(reference_id),
+      Array.isArray(items) ? items : []
+    );
+
+    let directRestock: any = { ok: true, insufficient: [], movements: [] };
+    if (Array.isArray(direct_items) && direct_items.length > 0) {
+      directRestock = await stock.applyMovements(
+        'restock_in',
+        reference_type,
+        String(reference_id),
+        direct_items.map(d => ({ product_id: d.product_id, quantity: d.quantity }))
+      );
+    }
+
+    res.json({
+      ok: recipeRestock.ok && directRestock.ok,
+      insufficient: [...recipeRestock.insufficient, ...directRestock.insufficient],
+      movements: [...recipeRestock.movements, ...directRestock.movements],
+    });
+  } catch (error: any) {
+    console.error("Error restocking stock:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Ajuste manual de stock
 // body: { product_id, quantity (con signo, + entrada / - salida), note }
 export const adjustStock = async (req: Request, res: Response) => {
