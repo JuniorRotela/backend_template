@@ -14,6 +14,8 @@ import {
   adjustStock,
   getLosses,
   createLoss,
+  updateLoss,
+  deleteLoss,
   getMonthlyReport,
   getRangeReport,
 } from "../controllers/stock.controllers";
@@ -47,6 +49,8 @@ router.post("/stock/adjust", adjustStock);
 // Pérdidas
 router.get("/stock/losses", getLosses);
 router.post("/stock/losses", createLoss);
+router.put("/stock/losses/:id", updateLoss);
+router.delete("/stock/losses/:id", deleteLoss);
 
 // Reporte mensual (gasto por compra)
 router.get("/stock/report", getMonthlyReport);

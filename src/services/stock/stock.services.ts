@@ -393,6 +393,118 @@ export const createLoss = async (data: {
   });
 };
 
+// Editar una pérdida: revierte el efecto anterior y aplica el nuevo
+export const updateLoss = async (id: number, data: {
+  product_id: number;
+  quantity: number;
+  reason?: string;
+  loss_date: string;
+}): Promise<any> => {
+  return AppDataSource.manager.transaction(async (manager) => {
+    const lossRepo = manager.getRepository(StockLoss);
+    const movementRepo = manager.getRepository(StockMovement);
+    const productRepo = manager.getRepository(StockProduct);
+
+    const loss = await lossRepo.findOneBy({ id });
+    if (!loss) throw new Error('Pérdida no encontrada');
+
+    const oldQty = fmt(toNumber(loss.quantity));
+    const newQty = fmt(toNumber(data.quantity));
+    if (newQty <= 0) throw new Error('La cantidad debe ser mayor a 0');
+
+    const newProduct = await productRepo.findOneBy({ id: data.product_id });
+    if (!newProduct) throw new Error('Producto no encontrado');
+
+    // Si cambió el producto: revertir stock en el viejo y descontar en el nuevo
+    if (loss.product_id !== data.product_id) {
+      const oldProduct = await productRepo.findOneBy({ id: loss.product_id });
+      if (oldProduct) {
+        await productRepo.update(oldProduct.id, { stock_quantity: fmt(toNumber(oldProduct.stock_quantity) + oldQty) });
+        await movementRepo.save(movementRepo.create({
+          product_id: oldProduct.id,
+          type: 'restock_in',
+          quantity: oldQty,
+          reference_type: 'loss',
+          reference_id: String(id),
+          note: `Reversión de pérdida #${id} (cambio de producto)`,
+        }));
+      }
+
+      await productRepo.update(newProduct.id, { stock_quantity: Math.max(0, fmt(toNumber(newProduct.stock_quantity) - newQty)) });
+      await movementRepo.save(movementRepo.create({
+        product_id: newProduct.id,
+        type: 'loss_out',
+        quantity: -newQty,
+        reference_type: 'loss',
+        reference_id: String(id),
+        note: `Pérdida editada: ${data.reason || 'Sin motivo'}`,
+      }));
+    } else {
+      // Mismo producto: solo ajustar la diferencia
+      const diff = fmt(newQty - oldQty);
+      if (diff !== 0) {
+        // diff > 0 -> descontar más | diff < 0 -> devolver
+        const current = fmt(toNumber(newProduct.stock_quantity) - diff);
+        await productRepo.update(newProduct.id, { stock_quantity: Math.max(0, current) });
+
+        await movementRepo.save(movementRepo.create({
+          product_id: newProduct.id,
+          type: diff > 0 ? 'loss_out' : 'restock_in',
+          quantity: -diff, // si diff>0 => negativo; si diff<0 => positivo
+          reference_type: 'loss',
+          reference_id: String(id),
+          note: `Ajuste por edición de pérdida #${id}`,
+        }));
+      }
+    }
+
+    const updated = await lossRepo.save({
+      ...loss,
+      product_id: data.product_id,
+      quantity: newQty,
+      reason: data.reason || '',
+      loss_date: data.loss_date,
+    });
+
+    return {
+      ...updated,
+      quantity: newQty,
+      product_name: newProduct.name,
+      product_unit_type: newProduct.unit_type,
+      estimated_cost: fmt(newQty * (toNumber(newProduct.cost_price) / costFactorFor(newProduct.unit_type))),
+    };
+  });
+};
+
+// Eliminar una pérdida: devuelve la cantidad al stock y borra el registro
+export const deleteLoss = async (id: number): Promise<boolean> => {
+  return AppDataSource.manager.transaction(async (manager) => {
+    const lossRepo = manager.getRepository(StockLoss);
+    const movementRepo = manager.getRepository(StockMovement);
+    const productRepo = manager.getRepository(StockProduct);
+
+    const loss = await lossRepo.findOneBy({ id });
+    if (!loss) return false;
+
+    const product = await productRepo.findOneBy({ id: loss.product_id });
+    if (product) {
+      const qty = fmt(toNumber(loss.quantity));
+      await productRepo.update(product.id, { stock_quantity: fmt(toNumber(product.stock_quantity) + qty) });
+      await movementRepo.save(movementRepo.create({
+        product_id: product.id,
+        type: 'restock_in',
+        quantity: qty,
+        reference_type: 'loss',
+        reference_id: String(id),
+        note: `Reversión de pérdida #${id} (eliminada)`,
+      }));
+    }
+
+    await lossRepo.delete({ id });
+    return true;
+  });
+};
+
 // ─── Reportes mensuales ───────────────────────────────────────
 export const getMonthlyReport = async (month: number, year: number): Promise<any> => {
   const purchaseRepo = AppDataSource.getRepository(StockPurchase);

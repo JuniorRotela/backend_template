@@ -227,6 +227,29 @@ export const createLoss = async (req: Request, res: Response) => {
   }
 };
 
+export const updateLoss = async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const loss = await stock.updateLoss(id, req.body);
+    res.json(loss);
+  } catch (error: any) {
+    console.error("Error updating loss:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteLoss = async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const ok = await stock.deleteLoss(id);
+    if (!ok) return res.status(404).json({ message: "Pérdida no encontrada" });
+    res.json({ message: "Pérdida eliminada" });
+  } catch (error: any) {
+    console.error("Error deleting loss:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // ─── Reporte mensual ──────────────────────────────────────────
 export const getMonthlyReport = async (req: Request, res: Response) => {
   try {
