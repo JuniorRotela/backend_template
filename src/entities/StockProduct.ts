@@ -29,6 +29,10 @@ export class StockProduct {
   @Column({ type: 'decimal', precision: 14, scale: 2, default: 0 })
   cost_price: number;
 
+  // Precio de venta por unidad de presentación
+  @Column({ type: 'decimal', precision: 14, scale: 2, default: 0 })
+  sale_price: number;
+
   @Column({ length: 100, nullable: true })
   supplier: string;
 

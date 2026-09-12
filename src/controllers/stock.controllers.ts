@@ -276,3 +276,52 @@ export const getRangeReport = async (req: Request, res: Response) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ─── Gastos operativos ────────────────────────────────────────
+export const getExpenses = async (req: Request, res: Response) => {
+  try {
+    const { month, year } = req.query;
+    const expenses = await stock.listExpenses(
+      month ? parseInt(month as string, 10) : undefined,
+      year ? parseInt(year as string, 10) : undefined
+    );
+    res.json(expenses);
+  } catch (error: any) {
+    console.error("Error listing expenses:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const createExpense = async (req: Request, res: Response) => {
+  try {
+    const expense = await stock.createExpense(req.body);
+    res.status(201).json(expense);
+  } catch (error: any) {
+    console.error("Error creating expense:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateExpense = async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const expense = await stock.updateExpense(id, req.body);
+    if (!expense) return res.status(404).json({ message: "Gasto no encontrado" });
+    res.json(expense);
+  } catch (error: any) {
+    console.error("Error updating expense:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteExpense = async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const ok = await stock.deleteExpense(id);
+    if (!ok) return res.status(404).json({ message: "Gasto no encontrado" });
+    res.json({ message: "Gasto eliminado" });
+  } catch (error: any) {
+    console.error("Error deleting expense:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};

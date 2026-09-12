@@ -18,6 +18,10 @@ import {
   deleteLoss,
   getMonthlyReport,
   getRangeReport,
+  getExpenses,
+  createExpense,
+  updateExpense,
+  deleteExpense,
 } from "../controllers/stock.controllers";
 
 const router = Router();
@@ -57,5 +61,11 @@ router.get("/stock/report", getMonthlyReport);
 
 // Reporte por rango de fechas (dashboard de ganancias)
 router.get("/stock/report/range", getRangeReport);
+
+// Gastos operativos
+router.get("/stock/expenses", getExpenses);
+router.post("/stock/expenses", createExpense);
+router.put("/stock/expenses/:id", updateExpense);
+router.delete("/stock/expenses/:id", deleteExpense);
 
 export default router;

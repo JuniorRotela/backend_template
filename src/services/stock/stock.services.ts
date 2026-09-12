@@ -5,6 +5,7 @@ import { StockPurchaseItem } from "../../entities/StockPurchaseItem";
 import { DishRecipe } from "../../entities/DishRecipe";
 import { StockMovement, MovementType } from "../../entities/StockMovement";
 import { StockLoss } from "../../entities/StockLoss";
+import { Expense } from "../../entities/Expense";
 
 const toNumber = (v: any): number => Number(v || 0);
 const fmt = (n: number): number => Math.round(n * 1000) / 1000;
@@ -505,10 +506,65 @@ export const deleteLoss = async (id: number): Promise<boolean> => {
   });
 };
 
+// ─── Gastos operativos ────────────────────────────────────────
+export const listExpenses = async (month?: number, year?: number): Promise<any[]> => {
+  const repo = AppDataSource.getRepository(Expense);
+  let query = repo
+    .createQueryBuilder('e')
+    .orderBy('e.expense_date', 'DESC')
+    .addOrderBy('e.id', 'DESC');
+
+  if (month && year) {
+    query = query.where('MONTH(e.expense_date) = :month AND YEAR(e.expense_date) = :year', { month, year });
+  }
+
+  const expenses = await query.getMany();
+  return expenses.map(e => ({ ...e, amount: toNumber(e.amount) }));
+};
+
+export const createExpense = async (data: {
+  description: string;
+  category: Expense['category'];
+  amount: number;
+  expense_date: string;
+  notes?: string;
+}): Promise<Expense> => {
+  const repo = AppDataSource.getRepository(Expense);
+  const expense = repo.create({
+    description: data.description,
+    category: (data.category || 'otros') as Expense['category'],
+    amount: fmt(toNumber(data.amount)),
+    expense_date: data.expense_date,
+    notes: data.notes || '',
+  });
+  return repo.save(expense);
+};
+
+export const updateExpense = async (id: number, data: Partial<Expense>): Promise<Expense | null> => {
+  const repo = AppDataSource.getRepository(Expense);
+  const expense = await repo.findOneBy({ id });
+  if (!expense) return null;
+  if (data.amount !== undefined) data.amount = fmt(toNumber(data.amount));
+  Object.assign(expense, data);
+  return repo.save(expense);
+};
+
+export const deleteExpense = async (id: number): Promise<boolean> => {
+  const repo = AppDataSource.getRepository(Expense);
+  const result = await repo.delete({ id });
+  return (result.affected || 0) > 0;
+};
+
+export const getExpensesTotal = async (month?: number, year?: number): Promise<number> => {
+  const expenses = await listExpenses(month, year);
+  return fmt(expenses.reduce((s, e) => s + toNumber(e.amount), 0));
+};
+
 // ─── Reportes mensuales ───────────────────────────────────────
 export const getMonthlyReport = async (month: number, year: number): Promise<any> => {
   const purchaseRepo = AppDataSource.getRepository(StockPurchase);
   const movementRepo = AppDataSource.getRepository(StockMovement);
+  const expenseRepo = AppDataSource.getRepository(Expense);
 
   // Gasto mensual por compra (detalle)
   const purchases = await purchaseRepo
@@ -546,6 +602,9 @@ export const getMonthlyReport = async (month: number, year: number): Promise<any
   // Pérdidas mensuales
   const losses = await listLosses(month, year);
 
+  // Gastos operativos mensuales
+  const expenses = await listExpenses(month, year);
+
   // Consumo mensual por ventas (salidas sale_out)
   const salesMovements = await movementRepo
     .createQueryBuilder('m')
@@ -576,6 +635,16 @@ export const getMonthlyReport = async (month: number, year: number): Promise<any
     purchases,
     losses,
     totalLossValue: fmt(losses.reduce((s, l) => s + toNumber(l.estimated_cost), 0)),
+    expenses,
+    totalExpenses: fmt(expenses.reduce((s, e) => s + toNumber(e.amount), 0)),
+    expensesByCategory: Object.values(
+      expenses.reduce((acc: Record<string, { category: string; total: number }>, e) => {
+        const cat = e.category || 'otros';
+        if (!acc[cat]) acc[cat] = { category: cat, total: 0 };
+        acc[cat].total = fmt(acc[cat].total + toNumber(e.amount));
+        return acc;
+      }, {})
+    ).sort((a, b) => b.total - a.total),
     consumptionByProduct: Object.values(consumptionByProduct).sort((a, b) => b.quantity - a.quantity),
   };
 };
@@ -584,6 +653,7 @@ export const getMonthlyReport = async (month: number, year: number): Promise<any
 export const getRangeReport = async (from: string, to: string): Promise<any> => {
   const purchaseRepo = AppDataSource.getRepository(StockPurchase);
   const lossRepo = AppDataSource.getRepository(StockLoss);
+  const expenseRepo = AppDataSource.getRepository(Expense);
 
   const purchases = await purchaseRepo
     .createQueryBuilder('p')
@@ -598,6 +668,12 @@ export const getRangeReport = async (from: string, to: string): Promise<any> => 
     .leftJoinAndSelect('l.product', 'product')
     .where('l.loss_date >= :from AND l.loss_date <= :to', { from, to })
     .orderBy('l.loss_date', 'ASC')
+    .getMany();
+
+  const expenses = await expenseRepo
+    .createQueryBuilder('e')
+    .where('e.expense_date >= :from AND e.expense_date <= :to', { from, to })
+    .orderBy('e.expense_date', 'ASC')
     .getMany();
 
   const spendByProduct: Record<number, { product_id: number; name: string; unit_type: string; quantity: number; total_cost: number }> = {};
@@ -624,6 +700,7 @@ export const getRangeReport = async (from: string, to: string): Promise<any> => 
   });
 
   const totalLossValue = fmt(losses.reduce((s, l) => s + toNumber(l.quantity) * (toNumber(l.product?.cost_price) / costFactorFor(l.product?.unit_type)), 0));
+  const totalExpenses = fmt(expenses.reduce((s, e) => s + toNumber(e.amount), 0));
 
   return {
     from,
@@ -634,5 +711,7 @@ export const getRangeReport = async (from: string, to: string): Promise<any> => 
     spendByProduct: Object.values(spendByProduct).sort((a, b) => b.total_cost - a.total_cost),
     lossesCount: losses.length,
     totalLossValue,
+    expensesCount: expenses.length,
+    totalExpenses,
   };
 };
