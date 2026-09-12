@@ -282,13 +282,20 @@ export const deductByRecipes = async (
   referenceType: string,
   referenceId: string,
   items: { dish_id: string; quantity: number }[]
-): Promise<{ ok: boolean; insufficient: any[]; movements: any[] }> => {
+): Promise<{ ok: boolean; insufficient: any[]; movements: any[]; noRecipe: string[] }> => {
   const repo = AppDataSource.getRepository(DishRecipe);
   const deductions: { product_id: number; quantity: number }[] = [];
+  const noRecipe: string[] = [];
 
   for (const item of items) {
     const recipes = await repo.find({ where: { dish_id: item.dish_id }, relations: ['product'] });
     const qtyMultiplier = toNumber(item.quantity);
+
+    if (recipes.length === 0) {
+      // Platos sin receta: no se puede descontar nada
+      noRecipe.push(item.dish_id);
+      continue;
+    }
 
     for (const recipe of recipes) {
       deductions.push({
@@ -298,7 +305,8 @@ export const deductByRecipes = async (
     }
   }
 
-  return applyMovements('sale_out', referenceType, referenceId, deductions);
+  const result = await applyMovements('sale_out', referenceType, referenceId, deductions);
+  return { ...result, noRecipe };
 };
 
 // Reversión de stock por receta (pedido cancelado / devolución). Suma de vuelta lo deducido.

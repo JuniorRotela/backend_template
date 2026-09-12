@@ -141,6 +141,7 @@ export const deductForSale = async (req: Request, res: Response) => {
       ok: recipeDeduction.ok && directDeduction.ok,
       insufficient: [...recipeDeduction.insufficient, ...directDeduction.insufficient],
       movements: [...recipeDeduction.movements, ...directDeduction.movements],
+      noRecipe: recipeDeduction.noRecipe || [],
     });
   } catch (error: any) {
     console.error("Error deducting stock:", error.message);
