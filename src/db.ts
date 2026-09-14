@@ -26,6 +26,7 @@ import { DishRecipe } from "./entities/DishRecipe";
 import { StockMovement } from "./entities/StockMovement";
 import { StockLoss } from "./entities/StockLoss";
 import { Expense } from "./entities/Expense";
+import { ExtraIncome } from "./entities/ExtraIncome";
 
 export const AppDataSource = new DataSource({
   type: "mysql",
@@ -34,7 +35,7 @@ export const AppDataSource = new DataSource({
   username: "u805022007_root",
   password: "Foodmix2025$",
   database: "u805022007_foodmix",
-  entities: [User, StockProduct, StockPurchase, StockPurchaseItem, DishRecipe, StockMovement, StockLoss, Expense], // acá van tus entidades
+  entities: [User, StockProduct, StockPurchase, StockPurchaseItem, DishRecipe, StockMovement, StockLoss, Expense, ExtraIncome], // acá van tus entidades
   logging: true,
   synchronize: true,
 });
