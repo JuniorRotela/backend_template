@@ -72,6 +72,18 @@ export const createPurchase = async (req: Request, res: Response) => {
   }
 };
 
+export const updatePurchase = async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const purchase = await stock.updatePurchase(id, req.body);
+    if (!purchase) return res.status(404).json({ message: "Compra no encontrada" });
+    res.json(purchase);
+  } catch (error: any) {
+    console.error("Error updating purchase:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export const deletePurchase = async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -274,6 +286,55 @@ export const getRangeReport = async (req: Request, res: Response) => {
     res.json(report);
   } catch (error: any) {
     console.error("Error getting range report:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── Ingresos Extras ──────────────────────────────────────────
+export const getExtraIncomes = async (req: Request, res: Response) => {
+  try {
+    const { month, year } = req.query;
+    const incomes = await stock.listExtraIncomes(
+      month ? parseInt(month as string, 10) : undefined,
+      year ? parseInt(year as string, 10) : undefined
+    );
+    res.json(incomes);
+  } catch (error: any) {
+    console.error("Error listing extra incomes:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const createExtraIncome = async (req: Request, res: Response) => {
+  try {
+    const income = await stock.createExtraIncome(req.body);
+    res.status(201).json(income);
+  } catch (error: any) {
+    console.error("Error creating extra income:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateExtraIncome = async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const income = await stock.updateExtraIncome(id, req.body);
+    if (!income) return res.status(404).json({ message: "Ingreso extra no encontrado" });
+    res.json(income);
+  } catch (error: any) {
+    console.error("Error updating extra income:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteExtraIncome = async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const ok = await stock.deleteExtraIncome(id);
+    if (!ok) return res.status(404).json({ message: "Ingreso extra no encontrado" });
+    res.json({ message: "Ingreso extra eliminado" });
+  } catch (error: any) {
+    console.error("Error deleting extra income:", error.message);
     res.status(500).json({ message: error.message });
   }
 };

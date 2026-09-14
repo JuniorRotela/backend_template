@@ -6,6 +6,7 @@ import { DishRecipe } from "../../entities/DishRecipe";
 import { StockMovement, MovementType } from "../../entities/StockMovement";
 import { StockLoss } from "../../entities/StockLoss";
 import { Expense } from "../../entities/Expense";
+import { ExtraIncome } from "../../entities/ExtraIncome";
 
 const toNumber = (v: any): number => Number(v || 0);
 const fmt = (n: number): number => Math.round(n * 1000) / 1000;
@@ -179,6 +180,100 @@ export const deletePurchase = async (id: number): Promise<boolean> => {
     await itemRepo.delete({ purchase_id: id });
     const result = await manager.getRepository(StockPurchase).delete({ id });
     return (result.affected || 0) > 0;
+  });
+};
+
+export const updatePurchase = async (id: number, data: any): Promise<any> => {
+  return AppDataSource.manager.transaction(async (manager) => {
+    const purchaseRepo = manager.getRepository(StockPurchase);
+    const itemRepo = manager.getRepository(StockPurchaseItem);
+    const productRepo = manager.getRepository(StockProduct);
+    const movementRepo = manager.getRepository(StockMovement);
+
+    const purchase = await purchaseRepo.findOneBy({ id });
+    if (!purchase) throw new Error('Compra no encontrada');
+
+    // 1. Revertir stock de los items actuales
+    const oldItems = await itemRepo.findBy({ purchase_id: id });
+    for (const item of oldItems) {
+      const product = await productRepo.findOneBy({ id: item.product_id });
+      if (product) {
+        const current = fmt(toNumber(product.stock_quantity) + toNumber(item.quantity));
+        await productRepo.update(product.id, { stock_quantity: current });
+        await movementRepo.save(movementRepo.create({
+          product_id: product.id,
+          type: 'restock_in',
+          quantity: toNumber(item.quantity),
+          reference_type: 'purchase',
+          reference_id: String(id),
+          note: `Reversión por edición de compra #${id}`,
+        }));
+      }
+    }
+
+    // 2. Actualizar cabecera
+    const discountPercent = Math.max(0, toNumber(data.discount_percent));
+    const discountFactor = discountPercent > 0 ? (100 - discountPercent) / 100 : 1;
+
+    const updatedPurchase = await purchaseRepo.save(purchaseRepo.create({
+      ...purchase,
+      id,
+      supplier: data.supplier || '',
+      purchase_date: data.purchase_date,
+      notes: data.notes || '',
+      discount_percent: discountPercent,
+    }));
+
+    // 3. Registrar nuevos items y descontar stock
+    await itemRepo.delete({ purchase_id: id });
+    let subtotal = 0;
+    const savedItems: any[] = [];
+
+    for (const line of data.items) {
+      const qty = fmt(toNumber(line.quantity));
+      const unitCost = toNumber(line.unit_cost);
+      const lineTotal = fmt(qty * unitCost);
+      subtotal += lineTotal;
+
+      const item = await itemRepo.save(itemRepo.create({
+        purchase_id: updatedPurchase.id,
+        product_id: line.product_id,
+        quantity: qty,
+        unit_cost: unitCost,
+        total_cost: lineTotal,
+      }));
+
+      const product = await productRepo.findOneBy({ id: line.product_id });
+      if (product) {
+        const current = fmt(toNumber(product.stock_quantity) + qty);
+        await productRepo.update(product.id, { stock_quantity: current });
+        await movementRepo.save(movementRepo.create({
+          product_id: product.id,
+          type: 'purchase_in',
+          quantity: qty,
+          reference_type: 'purchase',
+          reference_id: String(updatedPurchase.id),
+          note: `Compra editada ${updatedPurchase.supplier ? 'de ' + updatedPurchase.supplier : ''}`,
+        }));
+      }
+      savedItems.push({ ...item, quantity: qty, unit_cost: unitCost, total_cost: lineTotal });
+    }
+
+    const discountAmount = fmt(subtotal - subtotal * discountFactor);
+    const totalCost = fmt(subtotal - discountAmount);
+
+    await purchaseRepo.update(updatedPurchase.id, {
+      total_cost: totalCost,
+      discount_amount: discountAmount,
+    });
+
+    return {
+      ...updatedPurchase,
+      subtotal: fmt(subtotal),
+      discount_amount: discountAmount,
+      total_cost: totalCost,
+      items: savedItems,
+    };
   });
 };
 
@@ -566,6 +661,37 @@ export const deleteExpense = async (id: number): Promise<boolean> => {
 export const getExpensesTotal = async (month?: number, year?: number): Promise<number> => {
   const expenses = await listExpenses(month, year);
   return fmt(expenses.reduce((s, e) => s + toNumber(e.amount), 0));
+};
+
+export const listExtraIncomes = async (month?: number, year?: number): Promise<ExtraIncome[]> => {
+  const repo = AppDataSource.getRepository(ExtraIncome);
+  let query = repo.createQueryBuilder('ei').orderBy('ei.date', 'DESC');
+
+  if (month && year) {
+    query = query.where('MONTH(ei.date) = :month AND YEAR(ei.date) = :year', { month, year });
+  }
+
+  return query.getMany();
+};
+
+export const createExtraIncome = async (data: Partial<ExtraIncome>): Promise<ExtraIncome> => {
+  const repo = AppDataSource.getRepository(ExtraIncome);
+  const income = repo.create(data);
+  return repo.save(income);
+};
+
+export const updateExtraIncome = async (id: number, data: Partial<ExtraIncome>): Promise<ExtraIncome | null> => {
+  const repo = AppDataSource.getRepository(ExtraIncome);
+  const income = await repo.findOneBy({ id });
+  if (!income) return null;
+  Object.assign(income, data);
+  return repo.save(income);
+};
+
+export const deleteExtraIncome = async (id: number): Promise<boolean> => {
+  const repo = AppDataSource.getRepository(ExtraIncome);
+  const result = await repo.delete({ id });
+  return (result.affected || 0) > 0;
 };
 
 // ─── Reportes mensuales ───────────────────────────────────────

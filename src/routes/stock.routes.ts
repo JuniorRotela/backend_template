@@ -6,6 +6,7 @@ import {
   deleteProduct,
   getPurchases,
   createPurchase,
+  updatePurchase,
   deletePurchase,
   getRecipes,
   saveRecipe,
@@ -22,6 +23,10 @@ import {
   createExpense,
   updateExpense,
   deleteExpense,
+  getExtraIncomes,
+  createExtraIncome,
+  updateExtraIncome,
+  deleteExtraIncome,
 } from "../controllers/stock.controllers";
 
 const router = Router();
@@ -35,6 +40,7 @@ router.delete("/stock/products/:id", deleteProduct);
 // Compras
 router.get("/stock/purchases", getPurchases);
 router.post("/stock/purchases", createPurchase);
+router.put("/stock/purchases/:id", updatePurchase);
 router.delete("/stock/purchases/:id", deletePurchase);
 
 // Recetas (ingredientes por plato)
@@ -67,5 +73,11 @@ router.get("/stock/expenses", getExpenses);
 router.post("/stock/expenses", createExpense);
 router.put("/stock/expenses/:id", updateExpense);
 router.delete("/stock/expenses/:id", deleteExpense);
+
+// Ingresos Extras
+router.get("/stock/extra-income", getExtraIncomes);
+router.post("/stock/extra-income", createExtraIncome);
+router.put("/stock/extra-income/:id", updateExtraIncome);
+router.delete("/stock/extra-income/:id", deleteExtraIncome);
 
 export default router;
