@@ -82,7 +82,7 @@ export const createPurchase = async (data: {
   purchase_date: string;
   notes?: string;
   discount_percent?: number;
-  items: { product_id: number; quantity: number; unit_cost: number }[];
+  items: { product_id: number; quantity: number; unit_cost: number; packages_count?: number; units_per_package?: number }[];
 }): Promise<any> => {
   return AppDataSource.manager.transaction(async (manager) => {
     const purchaseRepo = manager.getRepository(StockPurchase);
@@ -116,7 +116,9 @@ export const createPurchase = async (data: {
         quantity: qty,
         unit_cost: unitCost,
         total_cost: lineTotal,
-      }));
+        packages_count: line.packages_count || null,
+        units_per_package: line.units_per_package || null,
+      } as any));
 
       const product = await productRepo.findOneBy({ id: line.product_id });
       if (product) {
@@ -132,7 +134,7 @@ export const createPurchase = async (data: {
         }));
       }
 
-      savedItems.push({ ...item, quantity: qty, unit_cost: unitCost, total_cost: lineTotal });
+      savedItems.push({ ...item, quantity: qty, unit_cost: unitCost, total_cost: lineTotal, packages_count: line.packages_count || null, units_per_package: line.units_per_package || null });
     }
 
     const discountAmount = fmt(subtotal - subtotal * discountFactor);
@@ -241,6 +243,8 @@ export const updatePurchase = async (id: number, data: any): Promise<any> => {
         quantity: qty,
         unit_cost: unitCost,
         total_cost: lineTotal,
+        packages_count: line.packages_count || null,
+        units_per_package: line.units_per_package || null,
       }));
 
       const product = await productRepo.findOneBy({ id: line.product_id });
