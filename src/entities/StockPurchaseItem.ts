@@ -21,16 +21,25 @@ export class StockPurchaseItem {
   @JoinColumn({ name: 'product_id' })
   product: StockProduct;
 
-  // Cantidad comprada en unidad base (unidades o gramos)
+  // Cantidad comprada en unidad base (unidades para unit/package, gramos para kg/g/weight, ml para ml)
   @Column({ type: 'decimal', precision: 14, scale: 3, default: 0 })
   quantity: number;
 
-  // Costo por unidad base (unidad o kg)
+  // Costo por unidad de presentación (unidad, kg, g, ml o paquete según unit_type)
   @Column({ type: 'decimal', precision: 14, scale: 2, default: 0 })
   unit_cost: number;
 
+  // Total de la línea (quantity * unit_cost)
   @Column({ type: 'decimal', precision: 14, scale: 2, default: 0 })
   total_cost: number;
+
+  // Si es un paquete: cuántos paquetes se compraron
+  @Column({ type: 'int', nullable: true })
+  packages_count: number;
+
+  // Si es un paquete: cuántas unidades sueltas trae cada paquete en esta compra
+  @Column({ type: 'int', nullable: true })
+  units_per_package: number;
 
   @CreateDateColumn()
   created_at: Date;
