@@ -293,10 +293,12 @@ export const getRangeReport = async (req: Request, res: Response) => {
 // ─── Ingresos Extras ──────────────────────────────────────────
 export const getExtraIncomes = async (req: Request, res: Response) => {
   try {
-    const { month, year } = req.query;
+    const { month, year, from, to } = req.query;
     const incomes = await stock.listExtraIncomes(
       month ? parseInt(month as string, 10) : undefined,
-      year ? parseInt(year as string, 10) : undefined
+      year ? parseInt(year as string, 10) : undefined,
+      from as string | undefined,
+      to as string | undefined
     );
     res.json(incomes);
   } catch (error: any) {

@@ -663,11 +663,13 @@ export const getExpensesTotal = async (month?: number, year?: number): Promise<n
   return fmt(expenses.reduce((s, e) => s + toNumber(e.amount), 0));
 };
 
-export const listExtraIncomes = async (month?: number, year?: number): Promise<ExtraIncome[]> => {
+export const listExtraIncomes = async (month?: number, year?: number, from?: string, to?: string): Promise<ExtraIncome[]> => {
   const repo = AppDataSource.getRepository(ExtraIncome);
   let query = repo.createQueryBuilder('ei').orderBy('ei.date', 'DESC');
 
-  if (month && year) {
+  if (from && to) {
+    query = query.where('ei.date >= :from AND ei.date <= :to', { from, to });
+  } else if (month && year) {
     query = query.where('MONTH(ei.date) = :month AND YEAR(ei.date) = :year', { month, year });
   }
 
