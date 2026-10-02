@@ -47,7 +47,8 @@ export const deleteProduct = async (id: number): Promise<boolean> => {
 };
 
 // ─── Compras ──────────────────────────────────────────────────
-export const listPurchases = async (month?: number, year?: number): Promise<any[]> => {
+// hasInvoice (opcional): true = solo compras con factura, false = solo sin factura
+export const listPurchases = async (month?: number, year?: number, hasInvoice?: boolean): Promise<any[]> => {
   const repo = AppDataSource.getRepository(StockPurchase);
 
   let query = repo
@@ -61,12 +62,21 @@ export const listPurchases = async (month?: number, year?: number): Promise<any[
     query = query.where('MONTH(p.purchase_date) = :month AND YEAR(p.purchase_date) = :year', { month, year });
   }
 
+  // Filtro opcional por factura (compras con/sin factura)
+  if (hasInvoice === true || hasInvoice === false) {
+    query = (month && year)
+      ? query.andWhere('p.has_invoice = :hasInvoice', { hasInvoice })
+      : query.where('p.has_invoice = :hasInvoice', { hasInvoice });
+  }
+
   const purchases = await query.getMany();
   return purchases.map(p => ({
     ...p,
     total_cost: toNumber(p.total_cost),
     discount_percent: toNumber(p.discount_percent),
     discount_amount: toNumber(p.discount_amount),
+    // Tolerante a boolean (TypeORM) o 1/0 (driver MySQL crudo)
+    has_invoice: !!p.has_invoice,
     subtotal: fmt(toNumber(p.total_cost) + toNumber(p.discount_amount)),
     items: (p.items || []).map(i => ({
       ...i,
@@ -82,6 +92,7 @@ export const createPurchase = async (data: {
   purchase_date: string;
   notes?: string;
   discount_percent?: number;
+  has_invoice?: boolean;
   items: { product_id: number; quantity: number; unit_cost: number; packages_count?: number; units_per_package?: number }[];
 }): Promise<any> => {
   return AppDataSource.manager.transaction(async (manager) => {
@@ -98,6 +109,7 @@ export const createPurchase = async (data: {
       purchase_date: data.purchase_date,
       notes: data.notes || '',
       discount_percent: discountPercent,
+      has_invoice: data.has_invoice === true,
       total_cost: 0,
     }));
 
@@ -224,6 +236,8 @@ export const updatePurchase = async (id: number, data: any): Promise<any> => {
       purchase_date: data.purchase_date,
       notes: data.notes || '',
       discount_percent: discountPercent,
+      // Si el cliente no envía has_invoice, se conserva el valor actual de la compra
+      has_invoice: data.has_invoice === true || data.has_invoice === false ? data.has_invoice : (purchase.has_invoice ?? false),
     }));
 
     // 3. Registrar nuevos items y descontar stock

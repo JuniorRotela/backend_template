@@ -25,6 +25,10 @@ export class StockPurchase {
   @Column({ type: 'decimal', precision: 14, scale: 2, default: 0 })
   discount_amount: number;
 
+  // Indica si la compra tiene factura (true) o no (false)
+  @Column({ type: 'boolean', default: false })
+  has_invoice: boolean;
+
   @OneToMany(() => StockPurchaseItem, item => item.purchase)
   items: StockPurchaseItem[];
 

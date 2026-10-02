@@ -50,10 +50,13 @@ export const deleteProduct = async (req: Request, res: Response) => {
 // ─── Compras ──────────────────────────────────────────────────
 export const getPurchases = async (req: Request, res: Response) => {
   try {
-    const { month, year } = req.query;
+    const { month, year, hasInvoice } = req.query;
+    // hasInvoice: 'true' = solo compras con factura, 'false' = solo sin factura (opcional)
+    const invoiceFilter = hasInvoice === 'true' ? true : hasInvoice === 'false' ? false : undefined;
     const purchases = await stock.listPurchases(
       month ? parseInt(month as string, 10) : undefined,
-      year ? parseInt(year as string, 10) : undefined
+      year ? parseInt(year as string, 10) : undefined,
+      invoiceFilter
     );
     res.json(purchases);
   } catch (error: any) {
