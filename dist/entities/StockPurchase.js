@@ -40,6 +40,10 @@ __decorate([
     __metadata("design:type", Number)
 ], StockPurchase.prototype, "discount_percent", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 10, default: 'percent' }),
+    __metadata("design:type", String)
+], StockPurchase.prototype, "discount_type", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 14, scale: 2, default: 0 }),
     __metadata("design:type", Number)
 ], StockPurchase.prototype, "discount_amount", void 0);

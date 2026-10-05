@@ -92,6 +92,8 @@ export const createPurchase = async (data: {
   purchase_date: string;
   notes?: string;
   discount_percent?: number;
+  discount_type?: 'percent' | 'fixed';
+  discount_amount?: number;
   has_invoice?: boolean;
   items: { product_id: number; quantity: number; unit_cost: number; packages_count?: number; units_per_package?: number }[];
 }): Promise<any> => {
@@ -101,14 +103,17 @@ export const createPurchase = async (data: {
     const productRepo = manager.getRepository(StockProduct);
     const movementRepo = manager.getRepository(StockMovement);
 
-    const discountPercent = Math.max(0, toNumber(data.discount_percent));
-    const discountFactor = discountPercent > 0 ? (100 - discountPercent) / 100 : 1;
+    // Lógica de descuento: puede ser % o valor fijo en guaraníes
+    const discountType = data.discount_type === 'fixed' ? 'fixed' : 'percent';
+    const discountPercent = discountType === 'percent' ? Math.min(100, Math.max(0, toNumber(data.discount_percent))) : 0;
+    const rawFixedAmount = discountType === 'fixed' ? Math.max(0, toNumber(data.discount_amount)) : 0;
 
     const purchase = await purchaseRepo.save(purchaseRepo.create({
       supplier: data.supplier || '',
       purchase_date: data.purchase_date,
       notes: data.notes || '',
       discount_percent: discountPercent,
+      discount_type: discountType,
       has_invoice: data.has_invoice === true,
       total_cost: 0,
     }));
@@ -149,12 +154,16 @@ export const createPurchase = async (data: {
       savedItems.push({ ...item, quantity: qty, unit_cost: unitCost, total_cost: lineTotal, packages_count: line.packages_count || null, units_per_package: line.units_per_package || null });
     }
 
-    const discountAmount = fmt(subtotal - subtotal * discountFactor);
+    const discountAmount = discountType === 'fixed'
+      ? fmt(Math.min(rawFixedAmount, subtotal)) // no puede ser mayor al subtotal
+      : fmt(subtotal - subtotal * (discountPercent > 0 ? (100 - discountPercent) / 100 : 1));
+
     const totalCost = fmt(subtotal - discountAmount);
 
     await purchaseRepo.update(purchase.id, {
       total_cost: totalCost,
       discount_amount: discountAmount,
+      discount_type: discountType,
     });
 
     return {
@@ -225,9 +234,10 @@ export const updatePurchase = async (id: number, data: any): Promise<any> => {
       }
     }
 
-    // 2. Actualizar cabecera
-    const discountPercent = Math.max(0, toNumber(data.discount_percent));
-    const discountFactor = discountPercent > 0 ? (100 - discountPercent) / 100 : 1;
+    // 2. Actualizar cabecera (lógica de descuento: % o monto fijo)
+    const discountType = data.discount_type === 'fixed' ? 'fixed' : 'percent';
+    const discountPercent = discountType === 'percent' ? Math.min(100, Math.max(0, toNumber(data.discount_percent))) : 0;
+    const rawFixedAmount = discountType === 'fixed' ? Math.max(0, toNumber(data.discount_amount)) : 0;
 
     const updatedPurchase = await purchaseRepo.save(purchaseRepo.create({
       ...purchase,
@@ -236,6 +246,7 @@ export const updatePurchase = async (id: number, data: any): Promise<any> => {
       purchase_date: data.purchase_date,
       notes: data.notes || '',
       discount_percent: discountPercent,
+      discount_type: discountType,
       // Si el cliente no envía has_invoice, se conserva el valor actual de la compra
       has_invoice: data.has_invoice === true || data.has_invoice === false ? data.has_invoice : (purchase.has_invoice ?? false),
     }));
@@ -277,12 +288,16 @@ export const updatePurchase = async (id: number, data: any): Promise<any> => {
       savedItems.push({ ...item, quantity: qty, unit_cost: unitCost, total_cost: lineTotal });
     }
 
-    const discountAmount = fmt(subtotal - subtotal * discountFactor);
+    const discountAmount = discountType === 'fixed'
+      ? fmt(Math.min(rawFixedAmount, subtotal)) // no puede ser mayor al subtotal
+      : fmt(subtotal - subtotal * (discountPercent > 0 ? (100 - discountPercent) / 100 : 1));
+
     const totalCost = fmt(subtotal - discountAmount);
 
     await purchaseRepo.update(updatedPurchase.id, {
       total_cost: totalCost,
       discount_amount: discountAmount,
+      discount_type: discountType,
     });
 
     return {
@@ -734,10 +749,14 @@ export const getMonthlyReport = async (month: number, year: number): Promise<any
   let totalDiscount = 0;
 
   purchases.forEach(p => {
-    const discountFactor = toNumber(p.discount_percent) > 0
-      ? (100 - toNumber(p.discount_percent)) / 100
+    const itemsSubtotal = (p.items || []).reduce((s, i) => s + toNumber(i.total_cost), 0);
+    const discountAmount = toNumber(p.discount_amount);
+    // factor de prorrateo = 1 - (descuento/subtotal). Funciona igual para % y para monto fijo
+    // porque discount_amount siempre guarda el descuento neto en guaraníes.
+    const discountFactor = itemsSubtotal > 0
+      ? fmt((itemsSubtotal - discountAmount) / itemsSubtotal)
       : 1;
-    totalDiscount += fmt(toNumber(p.discount_amount));
+    totalDiscount += fmt(discountAmount);
 
     (p.items || []).forEach(item => {
       const id = item.product_id;
@@ -835,10 +854,13 @@ export const getRangeReport = async (from: string, to: string): Promise<any> => 
   let totalDiscount = 0;
 
   purchases.forEach(p => {
-    const discountFactor = toNumber(p.discount_percent) > 0
-      ? (100 - toNumber(p.discount_percent)) / 100
+    const itemsSubtotal = (p.items || []).reduce((s, i) => s + toNumber(i.total_cost), 0);
+    const discountAmount = toNumber(p.discount_amount);
+    // factor = 1 - (descuento/subtotal): sirve para % y monto fijo (discount_amount siempre es el neto)
+    const discountFactor = itemsSubtotal > 0
+      ? fmt((itemsSubtotal - discountAmount) / itemsSubtotal)
       : 1;
-    totalDiscount += fmt(toNumber(p.discount_amount));
+    totalDiscount += fmt(discountAmount);
 
     (p.items || []).forEach(item => {
       const id = item.product_id;

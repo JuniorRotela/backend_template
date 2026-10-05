@@ -22,6 +22,10 @@ export class StockPurchase {
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
   discount_percent: number;
 
+  // Tipo de descuento: 'percent' (porcentaje) o 'fixed' (monto fijo en guaraníes)
+  @Column({ type: 'varchar', length: 10, default: 'percent' })
+  discount_type: 'percent' | 'fixed';
+
   @Column({ type: 'decimal', precision: 14, scale: 2, default: 0 })
   discount_amount: number;
 
